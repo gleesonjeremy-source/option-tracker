@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<!-- saved from url=(0068)file:///Users/jeremygleeson/Downloads/options_tracker_unified_1.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Options Tracker</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#fff;--bg2:#f7f7f7;--bg3:#eeeeee;
+  --txt:#111;--txt2:#666;--txt3:#aaa;
+  --border:#e0e0e0;--border2:#ccc;
+  --green:#1a7a3a;--green-bg:#eaf5ee;--green-light:#d1f0dc;
+  --red:#c0392b;--red-bg:#fdecea;
+  --blue:#1565c0;--blue-bg:#e8f0fc;
+  --purple:#6d28d9;--purple-bg:#f3f0ff;
+  --yellow:#b45309;--yellow-bg:#fef3c7;
+  --teal:#0f766e;--teal-bg:#e6f7f5;
+  --r:10px;--rs:6px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#1a1a1a;--bg2:#242424;--bg3:#2e2e2e;
+    --txt:#f0f0f0;--txt2:#999;--txt3:#555;
+    --border:#333;--border2:#444;
+    --green:#4caf7d;--green-bg:#1a3328;--green-light:#1a3328;
+    --red:#e57373;--red-bg:#3b1f1f;
+    --blue:#64b5f6;--blue-bg:#1a2a3d;
+    --purple:#a78bfa;--purple-bg:#2d1f5e;
+    --yellow:#fbbf24;--yellow-bg:#3d2f0a;
+    --teal:#2dd4bf;--teal-bg:#0d2e2b;
+  }
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;color:var(--txt);background:var(--bg3);min-height:100vh}
+#app{max-width:960px;margin:0 auto;padding:16px}
+
+/* ---- NAV ---- */
+.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+.nav-left h1{font-size:19px;font-weight:800;color:var(--txt)}
+.nav-left .sub{font-size:12px;color:var(--txt2);margin-top:1px}
+.nav-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* ---- VIEWS ---- */
+.view{display:none}.view.on{display:block}
+
+/* ---- TABS ---- */
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:16px}
+.tab{padding:9px 16px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--txt2);border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:500;white-space:nowrap}
+.tab:hover{color:var(--txt)}.tab.on{color:var(--txt);border-bottom-color:var(--txt);font-weight:700}
+
+/* ---- CARDS ---- */
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:1rem 1.1rem;margin-bottom:12px}
+.card-title{font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+
+/* ---- METRICS ---- */
+.mg{display:grid;gap:8px;margin-bottom:12px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.met{background:var(--bg2);border-radius:var(--rs);padding:10px 12px}
+.met-lbl{font-size:11px;color:var(--txt2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.met-val{font-size:17px;font-weight:700;line-height:1.2}
+.met-sub{font-size:11px;color:var(--txt3);margin-top:2px}
+
+/* ---- POSITION CARDS ---- */
+.pos-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden;cursor:pointer;transition:border-color .15s}
+.pos-card:hover{border-color:var(--border2)}
+.pos-hdr{padding:13px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.pos-hdr:hover{background:var(--bg2)}
+.pos-body{display:none;border-top:1px solid var(--border)}.pos-body.on{display:block}
+.pos-ticker{font-size:19px;font-weight:800}
+.pos-sub{font-size:12px;color:var(--txt2);margin-top:2px}
+
+/* ---- PILLS / BADGES ---- */
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.p-open{background:var(--blue-bg);color:var(--blue)}
+.p-closed{background:var(--bg3);color:var(--txt2)}
+.p-win{background:var(--green-bg);color:var(--green)}
+.p-loss{background:var(--red-bg);color:var(--red)}
+.p-free{background:var(--green-light);color:var(--green);font-size:12px;padding:3px 10px;border:1.5px solid var(--green)}
+.p-cc{background:var(--teal-bg);color:var(--teal)}
+.p-chain{background:var(--purple-bg);color:var(--purple)}
+.p-exp{background:var(--green-bg);color:var(--green)}
+.p-btc{background:var(--blue-bg);color:var(--blue)}
+.p-rolled{background:var(--yellow-bg);color:var(--yellow)}
+.p-asgn{background:var(--red-bg);color:var(--red)}
+.p-live{background:var(--purple-bg);color:var(--purple)}
+
+/* ---- DTE CHIPS ---- */
+.dte-ok{background:var(--green-bg);color:var(--green);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;display:inline-block}
+.dte-warn{background:var(--yellow-bg);color:var(--yellow);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;display:inline-block}
+.dte-urgent{background:var(--red-bg);color:var(--red);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;display:inline-block}
+
+/* ---- FREE TRADE BANNER ---- */
+.free-banner{background:var(--green-light);border:2px solid var(--green);border-radius:var(--r);padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.free-banner-icon{font-size:20px}
+.free-banner-text{font-size:13px;font-weight:700;color:var(--green)}
+.free-banner-sub{font-size:12px;color:var(--green);font-weight:400;margin-top:1px}
+
+/* ---- LIVE CALL BANNER ---- */
+.live-banner{background:var(--purple-bg);border:1.5px solid var(--purple);border-radius:var(--r);padding:12px 14px;margin-bottom:12px}
+.live-banner-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--purple);margin-bottom:7px}
+
+/* ---- SECTION HEADERS ---- */
+.sec-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.sec-hdr h3{font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em}
+
+/* ---- TABLES / ROWS ---- */
+.trow{display:grid;align-items:start;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px}
+.trow:last-child{border-bottom:none}
+.thdr{font-size:11px;color:var(--txt2);font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:5px 0;border-bottom:1px solid var(--border)}
+.trow-5{grid-template-columns:90px 1fr 90px 90px 80px}
+.trow-4{grid-template-columns:90px 1fr 90px 80px}
+.lot-row{grid-template-columns:90px 70px 80px 80px 1fr 36px}
+.scroll-box{max-height:300px;overflow-y:auto}
+
+/* ---- TIMELINE ---- */
+.timeline{margin-top:8px}
+.tl-item{display:flex;gap:10px;margin-bottom:0}
+.tl-dot-col{display:flex;flex-direction:column;align-items:center;width:16px;flex-shrink:0;padding-top:3px}
+.tl-dot{width:10px;height:10px;border-radius:50%;background:var(--purple);flex-shrink:0}
+.tl-dot.green{background:var(--green)}.tl-dot.red{background:var(--red)}.tl-dot.blue{background:var(--blue)}.tl-dot.gray{background:var(--txt3)}
+.tl-line{width:2px;background:var(--border);flex:1;min-height:16px;margin-top:2px}
+.tl-body{flex:1;padding-bottom:14px}
+.tl-title{font-size:13px;font-weight:600;margin-bottom:2px}
+.tl-detail{font-size:12px;color:var(--txt2);line-height:1.5}
+.tl-net{font-size:13px;font-weight:700;margin-top:3px}
+.tl-running{font-size:11px;color:var(--txt3);margin-top:1px}
+
+/* ---- FORMS ---- */
+.form-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.fld{display:flex;flex-direction:column;gap:4px;flex:1;min-width:80px}
+.fld label{font-size:11px;color:var(--txt2);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.fld input,.fld select,.fld textarea{font-size:13px;padding:8px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt);width:100%}
+.fld input:focus,.fld select:focus{outline:none;border-color:var(--blue)}
+.fld .hint{font-size:11px;color:var(--txt3);margin-top:2px}
+.w70{flex:0 0 70px;min-width:70px}.w85{flex:0 0 85px;min-width:85px}.w100{flex:0 0 100px;min-width:100px}.w115{flex:0 0 115px;min-width:115px}.w135{flex:0 0 135px;min-width:135px}
+
+/* ---- BUTTONS ---- */
+.btn{padding:8px 15px;font-size:13px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt);cursor:pointer;font-weight:600;transition:background .12s;white-space:nowrap}
+.btn:hover{background:var(--bg2)}.btn:active{opacity:.8}
+.btn-p{background:var(--txt);color:var(--bg);border-color:var(--txt)}.btn-p:hover{opacity:.85;background:var(--txt)}
+.btn-g{border-color:var(--green);color:var(--green)}.btn-g:hover{background:var(--green-bg)}
+.btn-r{border-color:var(--red);color:var(--red)}.btn-r:hover{background:var(--red-bg)}
+.btn-b{border-color:var(--blue);color:var(--blue)}.btn-b:hover{background:var(--blue-bg)}
+.btn-pur{border-color:var(--purple);color:var(--purple)}.btn-pur:hover{background:var(--purple-bg)}
+.btn-sm{padding:5px 10px;font-size:12px}
+
+/* ---- DIVIDERS / MISC ---- */
+.div-line{height:1px;background:var(--border);margin:12px 0}
+.info{background:var(--blue-bg);border-radius:var(--rs);padding:8px 11px;font-size:12px;color:var(--blue);margin-bottom:9px;line-height:1.6}
+.warn{background:var(--yellow-bg);border-radius:var(--rs);padding:8px 11px;font-size:12px;color:var(--yellow);margin-bottom:9px;line-height:1.6}
+.succ{background:var(--green-bg);border-radius:var(--rs);padding:8px 11px;font-size:12px;color:var(--green);margin-bottom:9px;line-height:1.6}
+.err-txt{font-size:12px;color:var(--red);margin-top:7px}
+.empty{color:var(--txt3);text-align:center;padding:1.5rem 0;font-size:13px}
+.green{color:var(--green)}.red{color:var(--red)}.mu{color:var(--txt2)}.purp{color:var(--purple)}
+
+/* ---- OVERLAY / MODAL ---- */
+.overlay{display:none;background:rgba(0,0,0,.5);position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;padding:16px}
+.overlay.on{display:flex}
+.modal{background:var(--bg);border-radius:var(--r);padding:1.25rem 1.4rem;width:100%;max-width:540px;max-height:90vh;overflow-y:auto;border:1px solid var(--border)}
+.modal-title{font-size:15px;font-weight:700;margin-bottom:14px;color:var(--txt)}
+
+/* ---- MODAL TABS ---- */
+.mtabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:12px;flex-wrap:wrap}
+.mtab{padding:7px 13px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--txt2);border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:500}
+.mtab:hover{color:var(--txt)}.mtab.on{color:var(--txt);border-bottom-color:var(--txt);font-weight:700}
+.mpane{display:none}.mpane.on{display:block}
+
+/* ---- STATS ---- */
+.stat-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+.stat-row:last-child{border-bottom:none}
+.stat-bar-bg{height:4px;background:var(--bg3);border-radius:2px;margin-top:3px;overflow:hidden}
+.stat-bar{height:4px;border-radius:2px}
+
+/* ---- SECTION DIVIDER LABEL ---- */
+.section-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--txt3);margin:18px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+
+/* Manual theme override */
+body.force-dark{
+  --bg:#1a1a1a;--bg2:#242424;--bg3:#2e2e2e;
+  --txt:#f0f0f0;--txt2:#999;--txt3:#555;
+  --border:#333;--border2:#444;
+  --green:#4caf7d;--green-bg:#1a3328;--green-light:#1a3328;
+  --red:#e57373;--red-bg:#3b1f1f;
+  --blue:#64b5f6;--blue-bg:#1a2a3d;
+  --purple:#a78bfa;--purple-bg:#2d1f5e;
+  --yellow:#fbbf24;--yellow-bg:#3d2f0a;
+  --teal:#2dd4bf;--teal-bg:#0d2e2b;
+}
+body.force-light{
+  --bg:#fff;--bg2:#f7f7f7;--bg3:#eeeeee;
+  --txt:#111;--txt2:#666;--txt3:#aaa;
+  --border:#e0e0e0;--border2:#ccc;
+  --green:#1a7a3a;--green-bg:#eaf5ee;--green-light:#d1f0dc;
+  --red:#c0392b;--red-bg:#fdecea;
+  --blue:#1565c0;--blue-bg:#e8f0fc;
+  --purple:#6d28d9;--purple-bg:#f3f0ff;
+  --yellow:#b45309;--yellow-bg:#fef3c7;
+  --teal:#0f766e;--teal-bg:#e6f7f5;
+}
+</style>
+</head>
+<body class="force-dark">
+<div id="app">
+
+<!-- ================================================ HOME VIEW -->
+<div id="v-home" class="view on">
+  <div class="nav">
+    <div class="nav-left">
+      <h1>Options Tracker</h1>
+      <div class="sub">Covered calls • Multi-leg chains • Free trade tracker</div>
+    </div>
+    <div class="nav-right">
+      <button class="btn btn-sm" onclick="showV(&#39;v-stats&#39;)">Strategy stats</button>
+      <button class="btn btn-sm" onclick="showV(&#39;v-settings&#39;)">Settings</button>
+      <button class="btn btn-p btn-sm" onclick="openNewModal()">+ New position</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="mg g5" style="margin-bottom:16px">
+    <div class="met"><div class="met-lbl">Total PnL</div><div class="met-val" id="hd-total"><span class="green">$3846.80</span></div><div class="met-sub">All positions</div></div>
+    <div class="met"><div class="met-lbl">Win rate</div><div class="met-val" id="hd-wr">—</div><div class="met-sub">Closed positions</div></div>
+    <div class="met"><div class="met-lbl">Total premiums</div><div class="met-val green" id="hd-prem">$966.00</div><div class="met-sub">All credits collected</div></div>
+    <div class="met"><div class="met-lbl">Best strategy</div><div class="met-val" id="hd-best" style="font-size:13px;line-height:1.3">Covered call</div></div>
+    <div class="met"><div class="met-lbl">Commissions</div><div class="met-val red" id="hd-comm">-$3.20</div><div class="met-sub">Total paid</div></div>
+  </div>
+
+  <div class="section-lbl">Open positions</div>
+  <div id="list-open"><div class="pos-card" onclick="openDetail(1776221088544)"><div class="pos-hdr"><div><div class="pos-ticker">CRCL <span class="pill p-cc">Covered call</span></div><div class="pos-sub">100 shares • avg $76.26 • now $106.25</div><div style="font-size:12px;color:var(--txt3)">Circle Covered Call</div></div><div style="text-align:right"><div style="font-size:17px;font-weight:700"><span class="green">$3846.80</span></div><div style="font-size:11px;color:var(--txt2)">combined PnL</div></div></div></div></div>
+
+  <div class="section-lbl">Closed positions</div>
+  <div id="list-closed"><div class="empty">No closed positions yet</div></div>
+</div>
+
+<!-- ================================================ DETAIL VIEW -->
+<div id="v-detail" class="view">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+    <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="showV(&#39;v-home&#39;)">
+      <span style="font-size:18px;color:var(--txt2)">←</span>
+      <span style="font-size:13px;font-weight:600;color:var(--txt2)">All positions</span>
+    </div>
+    <div id="det-actions" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+  </div>
+  <div id="det-content"></div>
+</div>
+
+<!-- ================================================ STATS VIEW -->
+<div id="v-stats" class="view">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;cursor:pointer" onclick="showV(&#39;v-home&#39;)">
+    <span style="font-size:18px;color:var(--txt2)">←</span>
+    <span style="font-size:13px;font-weight:600;color:var(--txt2)">Back</span>
+  </div>
+  <div class="mg g3" style="margin-bottom:16px">
+    <div class="met"><div class="met-lbl">Best strategy</div><div class="met-val" id="st-best" style="font-size:13px;line-height:1.4">—</div></div>
+    <div class="met"><div class="met-lbl">Most generated</div><div class="met-val" id="st-most" style="font-size:13px;line-height:1.4">—</div></div>
+    <div class="met"><div class="met-lbl">Closed positions</div><div class="met-val" id="st-closed">0</div></div>
+  </div>
+  <div id="stats-content"><div class="empty">No closed positions yet</div></div>
+</div>
+
+<!-- ================================================ SETTINGS VIEW -->
+<div id="v-settings" class="view">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;cursor:pointer" onclick="showV(&#39;v-home&#39;)">
+    <span style="font-size:18px;color:var(--txt2)">←</span>
+    <span style="font-size:13px;font-weight:600;color:var(--txt2)">Back</span>
+  </div>
+  <div class="card">
+    <div class="card-title">Appearance</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:2px">Color mode</div>
+        <div style="font-size:12px;color:var(--txt2)" id="theme-desc">Currently using dark mode</div>
+      </div>
+      <button id="theme-btn" class="btn" onclick="toggleTheme()" style="min-width:140px">Switch to light mode</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Commission settings</div>
+    <div class="form-row">
+      <div class="fld"><label>Per-contract rate ($)</label><input id="s-pc" type="number" step="0.01" min="0" placeholder="0.80"><div class="hint">Charged on open and close per contract</div></div>
+      <div class="fld"><label>Assignment fee ($)</label><input id="s-af" type="number" step="0.01" min="0" placeholder="0"></div>
+      <div class="fld"><label>Expiration fee ($)</label><input id="s-ef" type="number" step="0.01" min="0" placeholder="0"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end"><button class="btn btn-p" onclick="saveCfg()">Save settings</button></div>
+    <div id="s-ok" style="display:none;font-size:12px;color:var(--green);text-align:right;margin-top:6px">Saved.</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Backup &amp; restore</div>
+    <div class="info">Download a JSON backup of everything — positions, chains, settings.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="btn btn-g" onclick="exportBK()">Download backup</button>
+      <button class="btn" onclick="showBKText()">Copy text</button>
+    </div>
+    <div id="bk-wrap" style="display:none;margin-bottom:10px">
+      <textarea id="bk-txt" rows="5" style="width:100%;font-family:monospace;font-size:11px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--txt);resize:vertical" readonly=""></textarea>
+    </div>
+    <div class="div-line"></div>
+    <div class="card-title" style="margin-bottom:7px">Restore from backup</div>
+    <div class="warn">This replaces all current data. Cannot be undone.</div>
+    <textarea id="rs-txt" rows="4" style="width:100%;font-family:monospace;font-size:11px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--txt);resize:vertical;margin-bottom:8px" placeholder="Paste JSON backup here..."></textarea>
+    <div style="display:flex;gap:8px">
+      <button class="btn" onclick="previewRS()">Preview</button>
+      <button class="btn btn-r" id="rs-conf" style="display:none" onclick="confirmRS()">Replace all data</button>
+    </div>
+    <div id="rs-msg" style="font-size:13px;margin-top:8px"></div>
+  </div>
+</div>
+
+<!-- ================================================ MODALS ================================================ -->
+
+<!-- NEW POSITION TYPE PICKER -->
+<div id="m-pick" class="overlay" onclick="omClick(event,&#39;m-pick&#39;)">
+  <div class="modal">
+    <div class="modal-title">New position — choose type</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn" style="text-align:left;padding:14px 16px" onclick="closeM(&#39;m-pick&#39;);openNewCC()">
+        <div style="font-weight:700;margin-bottom:2px">Covered call position</div>
+        <div style="font-size:12px;color:var(--txt2);font-weight:400">Own shares + sell rolling calls against them</div>
+      </button>
+      <button class="btn" style="text-align:left;padding:14px 16px" onclick="closeM(&#39;m-pick&#39;);openNewChain()">
+        <div style="font-weight:700;margin-bottom:2px">Option position / chain</div>
+        <div style="font-size:12px;color:var(--txt2);font-weight:400">Iron condor, long call, sell put, calendar, diagonal, straddle, strangle — any play with rolling</div>
+      </button>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn" onclick="closeM(&#39;m-pick&#39;)">Cancel</button></div>
+  </div>
+</div>
+
+<!-- NEW COVERED CALL -->
+<div id="m-new-cc" class="overlay" onclick="omClick(event,&#39;m-new-cc&#39;)">
+  <div class="modal">
+    <div class="modal-title">New covered call position</div>
+    <div class="form-row">
+      <div class="fld w85"><label>Ticker</label><input id="ncc-tk" placeholder="CRCL" style="text-transform:uppercase"></div>
+      <div class="fld"><label>Name (optional)</label><input id="ncc-name" placeholder="Circle Internet"></div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Initial share lot</div>
+    <div class="form-row">
+      <div class="fld w100"><label>Shares</label><input id="ncc-sh" type="number" min="1" step="1" placeholder="100"></div>
+      <div class="fld w115"><label>Cost per share ($)</label><input id="ncc-cost" type="number" step="0.01" placeholder="25.00"></div>
+      <div class="fld w115"><label>Date purchased</label><input id="ncc-date" type="date"></div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Current price (optional)</div>
+    <div class="form-row">
+      <div class="fld w115"><label>Current price ($)</label><input id="ncc-cur" type="number" step="0.01" placeholder="28.00"></div>
+      <div class="fld w115"><label>As of</label><input id="ncc-cur-dt" type="date"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+      <button class="btn" onclick="closeM(&#39;m-new-cc&#39;)">Cancel</button>
+      <button class="btn btn-p" onclick="saveNewCC()">Create position</button>
+    </div>
+    <div id="ncc-err" class="err-txt"></div>
+  </div>
+</div>
+
+<!-- NEW CHAIN -->
+<div id="m-new-ch" class="overlay" onclick="omClick(event,&#39;m-new-ch&#39;)">
+  <div class="modal">
+    <div class="modal-title">New option position</div>
+    <div class="form-row">
+      <div class="fld w85"><label>Ticker</label><input id="nch-tk" placeholder="SPY" style="text-transform:uppercase"></div>
+      <div class="fld"><label>Position name</label><input id="nch-name" placeholder="e.g. SPY iron condor Oct cycle"></div>
+    </div>
+    <div class="form-row">
+      <div class="fld w135"><label>Strategy type</label>
+        <select id="nch-str">
+          <option>Long call</option><option>Long put</option>
+          <option>Sell put (CSP)</option><option>Covered call (chain)</option>
+          <option>Bull call spread</option><option>Bear put spread</option>
+          <option>Bull put spread</option><option>Bear call spread</option>
+          <option>Iron condor</option><option>Iron butterfly</option>
+          <option>Calendar spread</option><option>Diagonal spread</option>
+          <option>PMCC</option><option>Strangle</option><option>Straddle</option>
+          <option>Jade lizard</option><option>Custom</option>
+        </select>
+      </div>
+      <div class="fld w115"><label>Open date</label><input id="nch-date" type="date"></div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Opening position</div>
+    <div class="info">Enter each leg of your opening trade. Net cost determines if this is a debit (free trade tracker activates) or credit position.</div>
+    <div id="nch-legs"></div>
+    <button class="btn btn-sm" onclick="addNchLeg()" style="margin-bottom:10px">+ Add leg</button>
+    <div id="nch-cost-preview" style="display:none;background:var(--bg2);border-radius:var(--rs);padding:9px 12px;margin-bottom:10px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Net open cost</span><span id="ncp-net" style="font-weight:700"></span></div>
+      <div id="ncp-free-note" style="font-size:12px;color:var(--txt2)"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn" onclick="closeM(&#39;m-new-ch&#39;)">Cancel</button>
+      <button class="btn btn-p" onclick="saveNewChain()">Create position</button>
+    </div>
+    <div id="nch-err" class="err-txt"></div>
+  </div>
+</div>
+
+<!-- LOG CALL (CC) -->
+<div id="m-log-call" class="overlay" onclick="omClick(event,&#39;m-log-call&#39;)">
+  <div class="modal">
+    <div class="modal-title">Log new short call</div>
+    <div class="info">Enter the details of the call you sold (STO).</div>
+    <div class="form-row">
+      <div class="fld w115"><label>Date sold</label><input id="lc-date" type="date"></div>
+      <div class="fld w100"><label>Strike ($)</label><input id="lc-strike" type="number" step="0.5" placeholder="30.00"></div>
+      <div class="fld w115"><label>Expiry</label><input id="lc-exp" type="date"></div>
+      <div class="fld w70"><label>Contracts</label><input id="lc-qty" type="number" min="1" value="1" step="1"></div>
+    </div>
+    <div class="form-row">
+      <div class="fld"><label>Premium received ($ per share)</label><input id="lc-prem" type="number" step="0.01" placeholder="1.50"><div class="hint">1 contract = 100 shares. $1.50/share = $150 total received.</div></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+      <button class="btn" onclick="closeM(&#39;m-log-call&#39;)">Cancel</button>
+      <button class="btn btn-p" onclick="saveLogCall()">Log call</button>
+    </div>
+    <div id="lc-err" class="err-txt"></div>
+  </div>
+</div>
+
+<!-- CLOSE CALL (CC) -->
+<div id="m-close-call" class="overlay" onclick="omClick(event,&#39;m-close-call&#39;)">
+  <div class="modal">
+    <div class="modal-title">Close this call</div>
+    <div class="mtabs">
+      <button class="mtab on" onclick="ccTab(&#39;exp&#39;)">Expired</button>
+      <button class="mtab" onclick="ccTab(&#39;btc&#39;)">Bought to close</button>
+      <button class="mtab" onclick="ccTab(&#39;asgn&#39;)">Assigned</button>
+    </div>
+    <div id="cc-exp" class="mpane on">
+      <div class="succ">Option expired worthless — you keep the full premium.</div>
+      <div class="form-row"><div class="fld w115"><label>Date</label><input id="cc-exp-dt" type="date"></div></div>
+    </div>
+    <div id="cc-btc" class="mpane">
+      <div class="info">You bought the call back.</div>
+      <div class="form-row">
+        <div class="fld"><label>Buyback price ($ per share)</label><input id="cc-btc-p" type="number" step="0.01" placeholder="0.50"></div>
+        <div class="fld w115"><label>Date</label><input id="cc-btc-dt" type="date"></div>
+      </div>
+    </div>
+    <div id="cc-asgn" class="mpane">
+      <div class="warn">Your shares were called away at the strike price.</div>
+      <div class="form-row"><div class="fld w115"><label>Assignment date</label><input id="cc-asgn-dt" type="date"></div></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+      <button class="btn" onclick="closeM(&#39;m-close-call&#39;)">Cancel</button>
+      <button class="btn btn-p" onclick="saveCloseCall()">Confirm</button>
+    </div>
+    <div id="cc-err" class="err-txt"></div>
+  </div>
+</div>
+
+<!-- ROLL CALL (CC) -->
+<div id="m-roll-call" class="overlay" onclick="omClick(event,&#39;m-roll-call&#39;)">
+  <div class="modal">
+    <div class="modal-title">Roll this call</div>
+    <div class="info">Buy back the current call and open a new one — all in one step.</div>
+    <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px">Buy back old call</div>
+    <div class="form-row">
+      <div class="fld"><label>Buyback price ($ per share)</label><input id="rc-btc" type="number" step="0.01" placeholder="2.10"></div>
+      <div class="fld w115"><label>Date</label><input id="rc-date" type="date"></div>
+    </div>
+    <div class="div-line"></div>
+    <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px">Open new call</div>
+    <div class="form-row">
+      <div class="fld w100"><label>New strike ($)</label><input id="rc-strike" type="number" step="0.5" placeholder="32.00"></div>
+      <div class="fld w115"><label>New expiry</label><input id="rc-exp" type="date"></div>
+      <div class="fld w70"><label>Contracts</label><input id="rc-qty" type="number" min="1" value="1" step="1"></div>
+    </div>
+    <div class="form-row">
+      <div class="fld"><label>New premium ($ per share)</label><input id="rc-prem" type="number" step="0.01" placeholder="1.80"></div>
+    </div>
+    <div id="rc-preview" style="display:none;background:var(--bg2);border-radius:var(--rs);padding:9px 12px;margin-top:2px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Buyback cost</span><span class="red" id="rcp-btc"></span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">New premium</span><span class="green" id="rcp-prem"></span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Roll commissions</span><span class="red" id="rcp-comm"></span></div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:5px;margin-top:3px;font-weight:700"><span>Net this roll</span><span id="rcp-net"></span></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
+      <button class="btn" onclick="closeM(&#39;m-roll-call&#39;)">Cancel</button>
+      <button class="btn btn-p" onclick="saveRollCC()">Save roll</button>
+    </div>
+    <div id="rc-err" class="err-txt"></div>
+  </div>
+</div>
+
+<!-- ADD SHARE LOT (CC) -->
+<div id="m-add-lot" class="overlay" onclick="omClick(event,&#39;m-add-lot&#39;)">
+  <div class="modal">
+    <div class="modal-title">Add share lot</div>
+    <div class="form-row">
+      <div class="fld w100"><label>Shares</label><input id="al-sh" type="number" min="1" step="1" placeholder="100"></div>
+      <div class="fld w115"><label>Cost per share ($)</label><input id="al-cost" type="number" step="0.01" placeholder="27.00"></div>
+      <div class="fld w115"><label>Date purchased</label><input id="al-date" type="date"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+      <button class="btn" onclick="closeM(&#39;m-add-lot&#39;)">Cancel</button>
+      <button class="btn btn-p" onclick="saveAddLot()">Add lot</button>
+    </div>
+    <div id="al-err" class="err-txt"></div>
+  </div>
+</div>
+
+<!-- UPDATE SHARE PRICE -->
+<div id="m-upd-price" class="overlay" onclick="omClick(event,&#39;m-upd-price&#39;)">
+  <div class="modal">
+    <div class="modal-title">Update share price</div>
+    <div class="form-row">
+      <div class="fld"><label>Current price ($)</label><input id="up-p" type="number" step="0.01" placeholder="30.00"></div>
+      <div class="fld w115"><label>As of</label><input id="up-dt" type="date"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+      <button class="btn" onclick="closeM(&#39;m-upd-price&#39;)">Cancel</button>
+      <button class="btn btn-p" onclick="saveUpdPrice()">Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- UPDATE CALL MARK -->
+<div id="m-upd-mark" class="overlay" onclick="omClick(event,&#39;m-upd-mark&#39;)">
+  <div class="modal">
+    <div class="modal-title">Update call mark</div>
+    <div class="info">Current market price of the open short call — used to calculate unrealized PnL.</div>
+    <div class="form-row">
+      <div class="fld"><label>Current mark ($ per share)</label><input id="um-p" type="number" step="0.01" placeholder="0.80"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+      <button class="btn" onclick="closeM(&#39;m-upd-mark&#39;)">Cancel</button>
+      <button class="btn btn-p" onclick="saveUpdMark()">Update</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOG CHAIN EVENT (roll one leg, adjustment, close) -->
+<div id="m-chain-event" class="overlay" onclick="omClick(event,&#39;m-chain-event&#39;)">
+  <div class="modal">
+    <div class="modal-title" id="ce-title">Log roll / adjustment</div>
+    <div class="mtabs">
+      <button class="mtab on" onclick="ceTab(&#39;roll&#39;)">Roll a leg</button>
+      <button class="mtab" onclick="ceTab(&#39;adj&#39;)">Adjustment / new leg</button>
+      <button class="mtab" onclick="ceTab(&#39;close&#39;)">Close position</button>
+    </div>
+
+    <!-- ROLL A LEG -->
+    <div id="ce-roll" class="mpane on">
+      <div class="info">Buy back (BTC) one leg and sell a new one. Only log the leg you moved.</div>
+      <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px">Buy back (close old leg)</div>
+      <div class="form-row">
+        <div class="fld w70"><label>Type</label><select id="rl-btc-type"><option>Call</option><option>Put</option></select></div>
+        <div class="fld w85"><label>Strike ($)</label><input id="rl-btc-strike" type="number" step="0.5" placeholder="450"></div>
+        <div class="fld w85"><label>BTC price ($)</label><input id="rl-btc-price" type="number" step="0.01" placeholder="2.50" oninput="previewCE()"></div>
+        <div class="fld w70"><label>Qty</label><input id="rl-btc-qty" type="number" min="1" value="1" oninput="previewCE()"></div>
+      </div>
+      <div class="div-line"></div>
+      <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px">Sell to open (new leg)</div>
+      <div class="form-row">
+        <div class="fld w70"><label>Type</label><select id="rl-sto-type"><option>Call</option><option>Put</option></select></div>
+        <div class="fld w85"><label>Strike ($)</label><input id="rl-sto-strike" type="number" step="0.5" placeholder="455"></div>
+        <div class="fld w115"><label>Expiry</label><input id="rl-sto-exp" type="date"></div>
+        <div class="fld w70"><label>Qty</label><input id="rl-sto-qty" type="number" min="1" value="1" oninput="previewCE()"></div>
+        <div class="fld w85"><label>Premium ($)</label><input id="rl-sto-prem" type="number" step="0.01" placeholder="1.80" oninput="previewCE()"></div>
+      </div>
+    </div>
+
+    <!-- ADJUSTMENT -->
+    <div id="ce-adj" class="mpane">
+      <div class="info">Add a new leg or log any debit/credit adjustment to this position.</div>
+      <div class="form-row">
+        <div class="fld w70"><label>Action</label><select id="adj-action"><option>STO</option><option>BTO</option></select></div>
+        <div class="fld w70"><label>Type</label><select id="adj-type"><option>Call</option><option>Put</option></select></div>
+        <div class="fld w85"><label>Strike ($)</label><input id="adj-strike" type="number" step="0.5" placeholder="450"></div>
+        <div class="fld w115"><label>Expiry</label><input id="adj-exp" type="date"></div>
+        <div class="fld w70"><label>Qty</label><input id="adj-qty" type="number" min="1" value="1" oninput="previewCE()"></div>
+        <div class="fld w85"><label>Price ($)</label><input id="adj-price" type="number" step="0.01" placeholder="1.50" oninput="previewCE()"></div>
+      </div>
+    </div>
+
+    <!-- CLOSE -->
+    <div id="ce-close" class="mpane">
+      <div class="info">Mark the entire position closed. Enter any final close costs if applicable.</div>
+      <div class="form-row">
+        <div class="fld"><label>Close note</label><input id="cl-note" placeholder="e.g. expired worthless, all legs closed"></div>
+        <div class="fld w85"><label>Final cost ($)</label><input id="cl-cost" type="number" step="0.01" placeholder="0" oninput="previewCE()"><div class="hint">Total paid to close (0 if expired)</div></div>
+      </div>
+    </div>
+
+    <div class="form-row" style="margin-top:4px">
+      <div class="fld w115"><label>Date</label><input id="ce-date" type="date"></div>
+      <div class="fld"><label>Note (optional)</label><input id="ce-note" placeholder="Roll #2, defense on put side..."></div>
+    </div>
+
+    <div id="ce-preview" style="display:none;background:var(--bg2);border-radius:var(--rs);padding:9px 12px;margin-bottom:6px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Credits received</span><span class="green" id="cep-cr"></span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Debits paid</span><span class="red" id="cep-db"></span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Commissions</span><span class="red" id="cep-cm"></span></div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:5px;margin-top:3px;font-weight:700"><span>Net this event</span><span id="cep-net"></span></div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn" onclick="closeM(&#39;m-chain-event&#39;)">Cancel</button>
+      <button class="btn btn-p" onclick="saveChainEvent()">Save</button>
+    </div>
+    <div id="ce-err" class="err-txt"></div>
+  </div>
+</div>
+
+</div><!-- #app -->
+
+<script>
+/* ============================================================
+   DATA MODEL & STORAGE
+   ============================================================
+   Two position types stored in one array:
+   
+   Covered Call (type:'cc'):
+     { id, type:'cc', ticker, name, currentPrice, currentPriceDate,
+       lots:[{id, shares, costPerShare, date, assignedCallId}],
+       calls:[{id, dateSold, strike, expiry, qty, premPerShare,
+               btcPrice, closeDate, markPrice, status:'open'|'expired'|'btc'|'rolled'|'assigned'}]
+     }
+   
+   Chain (type:'chain'):
+     { id, type:'chain', ticker, name, strategy, openDate,
+       openLegs:[{action:'STO'|'BTO', optType:'Call'|'Put', strike, expiry, qty, price}],
+       events:[{id, date, note, eventType:'roll'|'adj'|'close',
+                credits, debits, commissions, netCash, legs:[...], closed:bool}],
+       closed:bool
+     }
+   ============================================================ */
+
+var PKEY='ot_positions_v1', CKEY='ot_cfg_v1';
+var DEF_CFG={pc:0.80,af:0,ef:0};
+var positions=[], cfg=Object.assign({},DEF_CFG);
+var activeId=null, activeCallId=null, nchLegs=[], ceMode='roll';
+var pendingRS=null;
+
+function load(){
+  positions=JSON.parse(localStorage.getItem(PKEY)||'[]');
+  cfg=JSON.parse(localStorage.getItem(CKEY)||JSON.stringify(DEF_CFG));
+}
+function save(){
+  localStorage.setItem(PKEY,JSON.stringify(positions));
+  localStorage.setItem(CKEY,JSON.stringify(cfg));
+}
+function G(id){return document.getElementById(id);}
+function nv(id){return parseFloat(G(id).value)||0;}
+function vv(id){return G(id).value;}
+function today(){return new Date().toISOString().split('T')[0];}
+function fmt(x){return (x<0?'-':'')+'$'+Math.abs(x).toFixed(2);}
+function fc(x){
+  if(x===null||x===undefined||isNaN(x))return '<span class="mu">—</span>';
+  return '<span class="'+(x>0?'green':'red')+'">'+fmt(x)+'</span>';
+}
+function fp(x){// positive = good (for positions where credit=good)
+  if(x===null||x===undefined||isNaN(x))return '<span class="mu">—</span>';
+  return '<span class="'+(x>=0?'green':'red')+'">'+fmt(x)+'</span>';
+}
+function dteStr(expStr){
+  if(!expStr)return null;
+  return Math.round((new Date(expStr)-new Date())/864e5);
+}
+function dteChip(expStr){
+  var d=dteStr(expStr);
+  if(d===null)return '';
+  if(d<0)return '<span class="dte-urgent">Expired</span>';
+  if(d===0)return '<span class="dte-urgent">Exp today</span>';
+  if(d<=7)return '<span class="dte-urgent">'+d+' DTE</span>';
+  if(d<=21)return '<span class="dte-warn">'+d+' DTE</span>';
+  return '<span class="dte-ok">'+d+' DTE</span>';
+}
+function getP(id){return positions.find(function(p){return p.id===id;});}
+
+/* ============================================================
+   COMMISSION HELPERS
+   ============================================================ */
+function openComm(qty){return cfg.pc*(parseFloat(qty)||1);}
+function closeComm(qty){return cfg.pc*(parseFloat(qty)||1);}
+function rollComm(qty){return openComm(qty)+closeComm(qty);}
+
+/* ============================================================
+   PNL ENGINE — COVERED CALL
+   
+   For each call event:
+     STO open: +premPerShare × qty × 100  (received)
+     BTC close: -btcPrice × qty × 100     (paid)
+     Expired: no BTC cost, expiration fee applies
+     Assigned: no BTC cost, assignment fee, shares called away at strike
+   
+   Net options = sum(all gross PnL per call) - sum(all commissions)
+   Share PnL = (currentPrice - avgCost) × activeShares
+   Assigned share PnL = (strike - lot.costPerShare) × assignedShares (FIFO)
+   Combined = options net + share PnL + assigned share PnL
+   ============================================================ */
+function ccStats(pos){
+  var activeLots=pos.lots.filter(function(l){return !l.assignedCallId;});
+  var totalShares=activeLots.reduce(function(a,l){return a+l.shares;},0);
+  var totalCost=activeLots.reduce(function(a,l){return a+l.shares*l.costPerShare;},0);
+  var avgCost=totalShares>0?totalCost/totalShares:0;
+  var curP=pos.currentPrice||0;
+  var shareUnreal=totalShares>0&&curP>0?(curP-avgCost)*totalShares:null;
+
+  var grossIn=0,grossOut=0,totalComm=0;
+  var openCall=null;
+
+  pos.calls.forEach(function(c){
+    var qty=parseFloat(c.qty)||1;
+    var prem=parseFloat(c.premPerShare)||0;
+    grossIn+=prem*qty*100;
+    totalComm+=openComm(qty);
+    if(c.status==='open'){openCall=c;}
+    else if(c.status==='expired'){totalComm+=cfg.ef;}
+    else if(c.status==='btc'||c.status==='rolled'){
+      grossOut+=(parseFloat(c.btcPrice)||0)*qty*100;
+      totalComm+=closeComm(qty);
+    } else if(c.status==='assigned'){
+      totalComm+=cfg.af;
+    }
+  });
+
+  var optionsNet=grossIn-grossOut-totalComm;
+
+  var assignedSharePnL=0;
+  pos.lots.filter(function(l){return !!l.assignedCallId;}).forEach(function(l){
+    var c=pos.calls.find(function(x){return x.id===l.assignedCallId;});
+    if(c) assignedSharePnL+=(parseFloat(c.strike)-l.costPerShare)*l.shares;
+  });
+
+  var openCallUnreal=null;
+  if(openCall&&openCall.markPrice){
+    var qty2=parseFloat(openCall.qty)||1;
+    openCallUnreal=(parseFloat(openCall.premPerShare)-parseFloat(openCall.markPrice))*qty2*100;
+  }
+
+  // Break-even: at what stock price does combined PnL = 0?
+  // Combined = (price - avgCost)*shares + optionsNet = 0
+  // price = avgCost - optionsNet/shares
+  var breakEven=totalShares>0?avgCost-(optionsNet/totalShares):null;
+
+  var combinedPnL=null;
+  if(shareUnreal!==null||optionsNet!==0||assignedSharePnL!==0){
+    combinedPnL=(shareUnreal||0)+optionsNet+assignedSharePnL;
+  }
+
+  // Is position fully closed? (all shares assigned and no open call)
+  var allAssigned=pos.lots.every(function(l){return !!l.assignedCallId;});
+  var isClosed=(allAssigned&&!openCall)||(pos.manuallyClosed);
+
+  return{activeLots,totalShares,avgCost,totalCost,curP,shareUnreal,
+    grossIn,grossOut,totalComm,optionsNet,assignedSharePnL,
+    openCall,openCallUnreal,breakEven,combinedPnL,isClosed};
+}
+
+/* ============================================================
+   PNL ENGINE — CHAIN
+   
+   Open cost = sum of opening legs:
+     STO: +price × qty × 100  (credit received)
+     BTO: -price × qty × 100  (debit paid)
+   
+   Net open cost < 0 means net debit (paid money) → free trade tracker applies
+   Net open cost > 0 means net credit → no free trade tracking needed
+   
+   Each event adds to running net:
+     roll: BTC cost (-) + new STO premium (+)
+     adj:  STO (+) or BTO (-)
+     close: final cost (-)
+   
+   All minus commissions throughout.
+   
+   Running net = openCost + sum(event nets)
+   Cost basis remaining (debit only) = |openCost| - credits collected so far
+   Free trade when cost basis remaining ≤ 0
+   ============================================================ */
+function chainStats(pos){
+  // Opening legs net
+  var openCost=0;
+  (pos.openLegs||[]).forEach(function(l){
+    var q=parseFloat(l.qty)||1;
+    var p=parseFloat(l.price)||0;
+    if(l.action==='STO') openCost+=p*q*100;
+    else openCost-=p*q*100;
+    openCost-=openComm(q);
+  });
+
+  // Is this a debit position? (we paid net to open)
+  var isDebit=openCost<0;
+  var originalDebit=isDebit?Math.abs(openCost):0;
+
+  // Events
+  var eventsNet=0;
+  var totalCreditsFromEvents=0;
+  var totalComm=0;
+  (pos.openLegs||[]).forEach(function(l){totalComm+=openComm(parseFloat(l.qty)||1);});
+
+  var isClosed=pos.closed||false;
+
+  (pos.events||[]).forEach(function(ev){
+    eventsNet+=ev.netCash||0;
+    if((ev.netCash||0)>0) totalCreditsFromEvents+=ev.netCash;
+    totalComm+=ev.commissions||0;
+    if(ev.closed) isClosed=true;
+  });
+
+  var runningNet=openCost+eventsNet;
+
+  // Free trade tracking (debit positions only)
+  // Credits collected = all positive event nets
+  // Cost basis remaining = originalDebit - credits collected from events - (positive portion of openCost if any)
+  var costBasisRemaining=null;
+  var isFree=false;
+  if(isDebit){
+    // Credits reduce cost basis
+    costBasisRemaining=originalDebit-totalCreditsFromEvents;
+    if(costBasisRemaining<=0) isFree=true;
+  }
+
+  // Unrealized: open position with events — mark not tracked at chain level
+  // Realized when closed
+  var finalPnL=isClosed?runningNet:null;
+  var unrealizedNet=isClosed?null:runningNet;
+
+  return{openCost,isDebit,originalDebit,eventsNet,runningNet,
+    totalComm,costBasisRemaining,isFree,isClosed,
+    finalPnL,unrealizedNet,totalCreditsFromEvents};
+}
+
+/* ============================================================
+   VIEWS
+   ============================================================ */
+function showV(name){
+  document.querySelectorAll('.view').forEach(function(v){v.classList.remove('on');});
+  G(name).classList.add('on');
+  if(name==='v-home') renderHome();
+  if(name==='v-stats') renderStats();
+  if(name==='v-settings'){G('s-pc').value=cfg.pc;G('s-af').value=cfg.af;G('s-ef').value=cfg.ef;}
+}
+
+/* ============================================================
+   HOME RENDER
+   ============================================================ */
+function renderHome(){
+  // Dashboard stats
+  var totalPnL=0,totalPrem=0,totalComm=0,wins=0,losses=0,closedCount=0;
+  var stratNet={};
+  positions.forEach(function(pos){
+    var net,comm,prem=0;
+    if(pos.type==='cc'){
+      var s=ccStats(pos);net=s.combinedPnL;comm=s.totalComm;prem=s.grossIn;
+      if(s.isClosed&&net!==null){closedCount++;if(net>=0)wins++;else losses++;}
+      if(!stratNet['Covered call'])stratNet['Covered call']={net:0,prem:0};
+      stratNet['Covered call'].net+=(net||0);stratNet['Covered call'].prem+=prem;
+    } else {
+      var s2=chainStats(pos);net=s2.runningNet;comm=s2.totalComm;
+      if(s2.isClosed){closedCount++;if(net>=0)wins++;else losses++;}
+      if(!stratNet[pos.strategy])stratNet[pos.strategy]={net:0,prem:0};
+      stratNet[pos.strategy].net+=(net||0);
+    }
+    if(net!==null) totalPnL+=net;
+    totalComm+=comm;totalPrem+=prem;
+  });
+  var tot=wins+losses;
+  G('hd-total').innerHTML=fp(totalPnL);
+  G('hd-wr').textContent=tot>0?Math.round(wins/tot*100)+'%':'—';
+  G('hd-prem').textContent=totalPrem>0?fmt(totalPrem):'—';
+  G('hd-comm').textContent=totalComm>0?fmt(-totalComm):'—';
+  var bestStr=Object.entries(stratNet).sort(function(a,b){return b[1].net-a[1].net;})[0];
+  G('hd-best').textContent=bestStr?bestStr[0]:'—';
+
+  // Split open vs closed
+  var open=[],closed=[];
+  positions.forEach(function(pos){
+    var isCl=pos.type==='cc'?ccStats(pos).isClosed:chainStats(pos).isClosed;
+    if(isCl) closed.push(pos); else open.push(pos);
+  });
+
+  G('list-open').innerHTML=open.length?open.map(function(p){return posCard(p);}).join(''):'<div class="empty">No open positions</div>';
+  G('list-closed').innerHTML=closed.length?closed.map(function(p){return posCard(p);}).join(''):'<div class="empty">No closed positions yet</div>';
+}
+
+function posCard(pos){
+  if(pos.type==='cc') return ccCard(pos);
+  return chainCard(pos);
+}
+
+function ccCard(pos){
+  var s=ccStats(pos);
+  var hasOpen=!!s.openCall;
+  return '<div class="pos-card" onclick="openDetail('+pos.id+')">'+
+    '<div class="pos-hdr">'+
+      '<div>'+
+        '<div class="pos-ticker">'+pos.ticker+' <span class="pill p-cc">Covered call</span>'+(hasOpen?'<span class="pill p-live" style="margin-left:4px">Live call</span>':'')+'</div>'+
+        '<div class="pos-sub">'+s.totalShares+' shares &bull; avg $'+s.avgCost.toFixed(2)+(s.curP?' &bull; now $'+s.curP.toFixed(2):'')+'</div>'+
+        (pos.name?'<div style="font-size:12px;color:var(--txt3)">'+pos.name+'</div>':'')+
+      '</div>'+
+      '<div style="text-align:right">'+
+        '<div style="font-size:17px;font-weight:700">'+(s.combinedPnL!==null?fp(s.combinedPnL):'<span class="mu">—</span>')+'</div>'+
+        '<div style="font-size:11px;color:var(--txt2)">combined PnL</div>'+
+        (hasOpen?'<div style="margin-top:3px">'+dteChip(s.openCall.expiry)+'</div>':'')+
+      '</div>'+
+    '</div>'+
+  '</div>';
+}
+
+function chainCard(pos){
+  var s=chainStats(pos);
+  var net=s.isClosed?s.finalPnL:s.unrealizedNet;
+  return '<div class="pos-card" onclick="openDetail('+pos.id+')">'+
+    '<div class="pos-hdr">'+
+      '<div>'+
+        '<div class="pos-ticker">'+pos.ticker+' <span class="pill p-chain">'+pos.strategy+'</span>'+
+        (s.isFree?'<span class="pill p-free" style="margin-left:6px">FREE TRADE</span>':'')+
+        (s.isClosed?'<span class="pill p-closed" style="margin-left:4px">Closed</span>':'')+'</div>'+
+        '<div class="pos-sub">'+pos.name+'</div>'+
+        '<div style="font-size:12px;color:var(--txt2)">'+(pos.events||[]).length+' event'+(((pos.events||[]).length)!==1?'s':'')+' logged</div>'+
+      '</div>'+
+      '<div style="text-align:right">'+
+        '<div style="font-size:17px;font-weight:700">'+(net!==null?fp(net):'<span class="mu">—</span>')+'</div>'+
+        '<div style="font-size:11px;color:var(--txt2)">'+(s.isClosed?'realized PnL':'running net')+'</div>'+
+        (s.isDebit&&!s.isFree&&s.costBasisRemaining!==null?
+          '<div style="font-size:11px;color:var(--txt2);margin-top:2px">Basis left: '+fmt(s.costBasisRemaining)+'</div>':'')+'</div>'+
+    '</div>'+
+  '</div>';
+}
+
+/* ============================================================
+   DETAIL VIEW
+   ============================================================ */
+function openDetail(id){
+  activeId=id;
+  showV('v-detail');
+  renderDetail();
+}
+
+function renderDetail(){
+  var pos=getP(activeId);if(!pos)return;
+  if(pos.type==='cc') renderCCDetail(pos);
+  else renderChainDetail(pos);
+}
+
+/* ---- CC DETAIL ---- */
+function renderCCDetail(pos){
+  var s=ccStats(pos);
+  var acts='<div style="display:flex;gap:7px;flex-wrap:wrap">'+
+    '<button class="btn btn-sm" onclick="openM(\'m-upd-price\')">Update price</button>'+
+    '<button class="btn btn-sm btn-g" onclick="openM(\'m-add-lot\')">+ Add lot</button>'+
+    (s.openCall?'':'<button class="btn btn-sm btn-g" onclick="openM(\'m-log-call\')">+ Log call</button>')+
+    '<button class="btn btn-sm btn-r" onclick="delPos('+pos.id+')">Delete</button>'+
+  '</div>';
+  G('det-actions').innerHTML=acts;
+
+  var h='';
+  // Title
+  h+='<div style="font-size:21px;font-weight:800;margin-bottom:4px">'+pos.ticker;
+  if(pos.name) h+=' <span style="font-size:14px;font-weight:400;color:var(--txt2)">'+pos.name+'</span>';
+  h+='</div><div style="font-size:12px;color:var(--txt2);margin-bottom:14px">Covered call position &bull; '+pos.calls.length+' call'+(pos.calls.length!==1?'s':'')+' logged</div>';
+
+  // Summary metrics
+  h+='<div class="mg g4" style="margin-bottom:12px">'+
+    '<div class="met"><div class="met-lbl">Combined PnL</div><div class="met-val">'+(s.combinedPnL!==null?fp(s.combinedPnL):'<span class="mu">—</span>')+'</div><div class="met-sub">Shares + options</div></div>'+
+    '<div class="met"><div class="met-lbl">Options net</div><div class="met-val">'+fp(s.optionsNet)+'</div><div class="met-sub">Premiums − buybacks − comm</div></div>'+
+    '<div class="met"><div class="met-lbl">Share gain/loss</div><div class="met-val">'+(s.shareUnreal!==null?fp(s.shareUnreal+(s.assignedSharePnL||0)):'<span class="mu">—</span>')+'</div><div class="met-sub">'+(s.curP?'At $'+s.curP.toFixed(2):'Enter price')+'</div></div>'+
+    '<div class="met"><div class="met-lbl">Commissions</div><div class="met-val red">'+fmt(-s.totalComm)+'</div></div>'+
+  '</div>';
+
+  // Live call banner
+  if(s.openCall){
+    var oc=s.openCall;
+    var qty=parseFloat(oc.qty)||1;
+    var grossPrem=(parseFloat(oc.premPerShare)||0)*qty*100;
+    h+='<div class="live-banner">'+
+      '<div class="live-banner-lbl">Live short call</div>'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'+
+        '<div>'+
+          '<div style="font-size:20px;font-weight:800">$'+parseFloat(oc.strike).toFixed(2)+' Call &nbsp;'+dteChip(oc.expiry)+'</div>'+
+          '<div style="font-size:13px;color:var(--txt2);margin-top:3px">'+qty+' contract'+(qty!==1?'s':'')+' &bull; Exp '+oc.expiry+'</div>'+
+          '<div style="font-size:13px;color:var(--txt2)">Premium: $'+parseFloat(oc.premPerShare).toFixed(2)+'/sh ($'+grossPrem.toFixed(2)+' received)</div>'+
+          (s.breakEven!==null?'<div style="font-size:12px;margin-top:4px;font-weight:600">Campaign break-even: <span style="color:var(--txt)">$'+s.breakEven.toFixed(2)+'</span></div>':'')+
+        '</div>'+
+        '<div style="text-align:right">'+
+          (s.openCallUnreal!==null?'<div style="font-size:17px;font-weight:700">'+fp(s.openCallUnreal)+'</div><div style="font-size:11px;color:var(--txt2)">unrealized on this call</div>':'<div style="font-size:12px;color:var(--txt2)">No mark set</div>')+
+          '<div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">'+
+            '<button class="btn btn-sm btn-b" onclick="openM(\'m-upd-mark\')">Update mark</button>'+
+            '<button class="btn btn-sm btn-pur" onclick="openM(\'m-roll-call\')">Roll</button>'+
+            '<button class="btn btn-sm" onclick="openM(\'m-close-call\')">Close</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }
+
+  // Options summary totals
+  h+='<div class="card">'+
+    '<div class="sec-hdr"><h3>Options totals</h3></div>'+
+    '<div class="mg g3">'+
+      '<div class="met"><div class="met-lbl">Total premiums in</div><div class="met-val green">$'+s.grossIn.toFixed(2)+'</div><div class="met-sub">All STO premiums</div></div>'+
+      '<div class="met"><div class="met-lbl">Total buyback cost</div><div class="met-val red">$'+s.grossOut.toFixed(2)+'</div><div class="met-sub">All BTC paid</div></div>'+
+      '<div class="met"><div class="met-lbl">Net (after comm)</div><div class="met-val">'+fp(s.optionsNet)+'</div><div class="met-sub">True options PnL</div></div>'+
+    '</div>'+
+  '</div>';
+
+  // Share lots
+  h+='<div class="card">'+
+    '<div class="sec-hdr"><h3>Share lots</h3></div>'+
+    '<div class="trow lot-row thdr"><span>Date</span><span>Shares</span><span>Cost/sh</span><span>Total</span><span>Status</span><span></span></div>'+
+    '<div class="scroll-box">'+
+    pos.lots.map(function(lot){
+      var asgn=!!lot.assignedCallId;
+      return '<div class="trow lot-row">'+
+        '<span style="font-size:12px">'+lot.date+'</span>'+
+        '<span>'+lot.shares+'</span>'+
+        '<span>$'+lot.costPerShare.toFixed(2)+'</span>'+
+        '<span>$'+(lot.shares*lot.costPerShare).toFixed(2)+'</span>'+
+        '<span>'+(asgn?'<span class="pill p-asgn">Assigned</span>':'<span style="font-size:12px;color:var(--green)">Active</span>')+'</span>'+
+        '<span>'+(asgn?'':'<button class="btn btn-r btn-sm" onclick="delLot('+lot.id+')">&#10005;</button>')+'</span>'+
+      '</div>';
+    }).join('')+
+    '</div>'+
+    (s.totalShares>0?'<div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border);display:flex;gap:14px;font-size:13px;flex-wrap:wrap">'+
+      '<span><span class="mu">Active:</span> <strong>'+s.totalShares+' shares</strong></span>'+
+      '<span><span class="mu">Avg cost:</span> <strong>$'+s.avgCost.toFixed(2)+'</strong></span>'+
+      '<span><span class="mu">Invested:</span> <strong>$'+s.totalCost.toFixed(2)+'</strong></span>'+
+      (s.curP?'<span><span class="mu">Value now:</span> <strong>$'+(s.totalShares*s.curP).toFixed(2)+'</strong></span>':'')+'</div>':'')+
+  '</div>';
+
+  // Call history
+  h+='<div class="card">'+
+    '<div class="sec-hdr"><h3>Call history</h3>'+(s.openCall?'':'<button class="btn btn-sm btn-g" onclick="openM(\'m-log-call\')">+ Log call</button>')+'</div>';
+  if(!pos.calls.length){
+    h+='<div class="empty">No calls logged yet</div>';
+  } else {
+    h+='<div class="trow trow-5 thdr"><span>Date sold</span><span>Strike / Expiry</span><span>Premium</span><span>Result</span><span style="text-align:right">Net PnL</span></div>'+
+    '<div class="scroll-box">'+
+    pos.calls.slice().reverse().map(function(c){
+      var qty=parseFloat(c.qty)||1,prem=parseFloat(c.premPerShare)||0;
+      var grossP=prem*qty*100,btc=parseFloat(c.btcPrice)||0,grossB=btc*qty*100;
+      var oc2=openComm(qty),cc2=0,badge='',result='',net=null;
+      if(c.status==='open'){badge='<span class="pill p-live">Open</span>';result=dteChip(c.expiry);net=null;}
+      else if(c.status==='expired'){badge='<span class="pill p-exp">Expired</span>';result='Kept full premium';cc2=cfg.ef;net=grossP-oc2-cc2;}
+      else if(c.status==='btc'){badge='<span class="pill p-btc">BTC</span>';result='BTC $'+btc.toFixed(2)+'/sh ($'+grossB.toFixed(2)+')';cc2=closeComm(qty);net=grossP-grossB-oc2-cc2;}
+      else if(c.status==='rolled'){badge='<span class="pill p-rolled">Rolled</span>';result='BTC $'+btc.toFixed(2)+'/sh';cc2=closeComm(qty);net=grossP-grossB-oc2-cc2;}
+      else if(c.status==='assigned'){badge='<span class="pill p-asgn">Assigned</span>';result='Assigned @ $'+parseFloat(c.strike).toFixed(2);cc2=cfg.af;net=grossP-oc2-cc2;}
+      return '<div class="trow trow-5">'+
+        '<span style="font-size:12px">'+c.dateSold+'</span>'+
+        '<span><strong>$'+parseFloat(c.strike).toFixed(2)+'</strong><br><span style="font-size:11px;color:var(--txt2)">'+c.expiry+'</span></span>'+
+        '<span>$'+prem.toFixed(2)+'/sh<br><span style="font-size:11px;color:var(--txt2)">$'+grossP.toFixed(2)+' total</span></span>'+
+        '<span>'+badge+'<br><span style="font-size:11px;color:var(--txt2)">'+result+'</span></span>'+
+        '<span style="text-align:right">'+(net!==null?fp(net):'<span class="mu">Open</span>')+'</span>'+
+      '</div>';
+    }).join('')+'</div>';
+  }
+  if(!s.openCall) h+='<div style="margin-top:10px"><button class="btn btn-g" onclick="openM(\'m-log-call\')">+ Log new call</button></div>';
+  h+='</div>';
+
+  G('det-content').innerHTML=h;
+}
+
+/* ---- CHAIN DETAIL ---- */
+function renderChainDetail(pos){
+  var s=chainStats(pos);
+  var net=s.isClosed?s.finalPnL:s.unrealizedNet;
+
+  var acts='<div style="display:flex;gap:7px;flex-wrap:wrap">'+
+    (!s.isClosed?'<button class="btn btn-sm btn-pur" onclick="openM(\'m-chain-event\')">+ Log roll / adjustment</button>':'<button class="btn btn-sm btn-g" onclick="reopenChain()">Reopen</button>')+
+    '<button class="btn btn-sm btn-r" onclick="delPos('+pos.id+')">Delete</button>'+
+  '</div>';
+  G('det-actions').innerHTML=acts;
+
+  var h='';
+  h+='<div style="font-size:21px;font-weight:800;margin-bottom:4px">'+pos.ticker+' <span class="pill p-chain">'+pos.strategy+'</span>';
+  if(s.isFree) h+=' <span class="pill p-free">FREE TRADE</span>';
+  if(s.isClosed) h+=' <span class="pill p-closed">Closed</span>';
+  h+='</div><div style="font-size:13px;color:var(--txt2);margin-bottom:14px">'+pos.name+'</div>';
+
+  // Free trade banner
+  if(s.isFree){
+    h+='<div class="free-banner">'+
+      '<div class="free-banner-icon">&#10003;</div>'+
+      '<div><div class="free-banner-text">Free trade — you\'re playing with house money</div>'+
+      '<div class="free-banner-sub">Credits collected exceed original cost. Net position cost is $0 or better.</div></div>'+
+    '</div>';
+  } else if(s.isDebit&&s.costBasisRemaining!==null){
+    h+='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:10px 13px;margin-bottom:12px">'+
+      '<div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Free trade progress</div>'+
+      '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">'+
+        '<span class="mu">Original cost</span><span class="red">'+fmt(-s.originalDebit)+'</span>'+
+      '</div>'+
+      '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px">'+
+        '<span class="mu">Credits collected</span><span class="green">'+fmt(s.totalCreditsFromEvents)+'</span>'+
+      '</div>'+
+      '<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;border-top:1px solid var(--border);padding-top:6px">'+
+        '<span>Cost basis remaining</span><span class="'+(s.costBasisRemaining>0?'red':'green')+'">'+fmt(s.costBasisRemaining)+'</span>'+
+      '</div>'+
+      // Progress bar
+      '<div style="margin-top:8px"><div style="font-size:11px;color:var(--txt2);margin-bottom:3px">Progress to free trade</div>'+
+      '<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">'+
+      '<div style="height:6px;background:var(--green);border-radius:3px;width:'+Math.min(100,Math.round(s.totalCreditsFromEvents/s.originalDebit*100))+'%"></div>'+
+      '</div><div style="font-size:11px;color:var(--txt2);margin-top:2px">'+Math.min(100,Math.round(s.totalCreditsFromEvents/s.originalDebit*100))+'% recovered</div></div>'+
+    '</div>';
+  }
+
+  // Summary
+  h+='<div class="mg g4" style="margin-bottom:12px">'+
+    '<div class="met"><div class="met-lbl">'+(s.isClosed?'Final PnL':'Running net')+'</div><div class="met-val">'+(net!==null?fp(net):'<span class="mu">—</span>')+'</div><div class="met-sub">After all commissions</div></div>'+
+    '<div class="met"><div class="met-lbl">Open cost</div><div class="met-val">'+fp(s.openCost)+'</div><div class="met-sub">'+(s.openCost<0?'Net debit paid':'Net credit received')+'</div></div>'+
+    '<div class="met"><div class="met-lbl">Events net</div><div class="met-val">'+fp(s.eventsNet)+'</div><div class="met-sub">All rolls/adjustments</div></div>'+
+    '<div class="met"><div class="met-lbl">Commissions</div><div class="met-val red">'+fmt(-s.totalComm)+'</div></div>'+
+  '</div>';
+
+  // Opening legs
+  if(pos.openLegs&&pos.openLegs.length){
+    h+='<div class="card">'+
+      '<div class="sec-hdr"><h3>Opening legs</h3></div>'+
+      '<div class="trow trow-4 thdr"><span>Action</span><span>Leg</span><span>Price</span><span style="text-align:right">Cash flow</span></div>'+
+      pos.openLegs.map(function(l){
+        var q=parseFloat(l.qty)||1,p=parseFloat(l.price)||0;
+        var cf=l.action==='STO'?p*q*100:-p*q*100;
+        return '<div class="trow trow-4">'+
+          '<span><span class="pill '+(l.action==='STO'?'p-exp':'p-btc')+'">'+l.action+'</span></span>'+
+          '<span><strong>'+l.optType+' $'+parseFloat(l.strike).toFixed(2)+'</strong><br><span style="font-size:11px;color:var(--txt2)">'+l.expiry+' &bull; '+q+'x</span></span>'+
+          '<span>$'+p.toFixed(2)+'/sh</span>'+
+          '<span style="text-align:right">'+fp(cf)+'</span>'+
+        '</div>';
+      }).join('')+
+    '</div>';
+  }
+
+  // Timeline
+  if(pos.events&&pos.events.length){
+    h+='<div class="card">'+
+      '<div class="sec-hdr"><h3>Roll &amp; adjustment timeline</h3></div>'+
+      '<div class="timeline">';
+    var running=s.openCost;
+    pos.events.forEach(function(ev,i){
+      running+=ev.netCash||0;
+      var isLast=i===pos.events.length-1;
+      var dotClass=((ev.netCash||0)>=0)?'green':((ev.eventType==='close')?'gray':'red');
+      var icon=ev.eventType==='roll'?'Roll':ev.eventType==='adj'?'Adj':ev.eventType==='close'?'Closed':'Event';
+      h+='<div class="tl-item">'+
+        '<div class="tl-dot-col"><div class="tl-dot '+dotClass+'"></div>'+(isLast?'':'<div class="tl-line"></div>')+'</div>'+
+        '<div class="tl-body">'+
+          '<div class="tl-title">'+icon+(ev.note?' &mdash; <span style="font-weight:400;color:var(--txt2)">'+ev.note+'</span>':'')+'</div>'+
+          '<div class="tl-detail">'+ev.date+'</div>'+
+          (ev.detail?'<div class="tl-detail">'+ev.detail+'</div>':'')+
+          '<div class="tl-net">'+fp(ev.netCash||0)+'</div>'+
+          '<div class="tl-running">Running net: '+fp(running)+'</div>'+
+        '</div>'+
+      '</div>';
+    });
+    h+='</div></div>';
+  }
+
+  if(!pos.events||!pos.events.length){
+    h+='<div class="card"><div class="empty">No events yet — log your first roll or adjustment</div></div>';
+  }
+
+  G('det-content').innerHTML=h;
+}
+
+/* ============================================================
+   STATS VIEW
+   ============================================================ */
+function renderStats(){
+  var by={};
+  var bestStr='—',mostStr='—',bestNet=-Infinity,mostPrem=0;
+  var closedCount=0;
+  positions.forEach(function(pos){
+    var key,net,prem=0,isCl=false;
+    if(pos.type==='cc'){
+      var s=ccStats(pos);key='Covered call';net=s.combinedPnL||0;prem=s.grossIn;isCl=s.isClosed;
+    } else {
+      var s2=chainStats(pos);key=pos.strategy;net=s2.runningNet||0;isCl=s2.isClosed;
+    }
+    if(!by[key])by[key]={wins:0,losses:0,net:0,prem:0,count:0,closedCount:0};
+    by[key].count++;by[key].net+=net;by[key].prem+=prem;
+    if(isCl){closedCount++;by[key].closedCount++;if(net>=0)by[key].wins++;else by[key].losses++;}
+  });
+  G('st-closed').textContent=closedCount;
+
+  var rows=Object.entries(by).sort(function(a,b){return b[1].net-a[1].net;});
+  if(rows.length){
+    bestStr=rows[0][0];
+    var mostE=Object.entries(by).sort(function(a,b){return b[1].prem-a[1].prem;})[0];
+    mostStr=mostE[0];
+    G('st-best').textContent=bestStr;G('st-most').textContent=mostStr;
+  } else {G('st-best').textContent='—';G('st-most').textContent='—';}
+
+  if(!rows.length){G('stats-content').innerHTML='<div class="empty">No positions yet</div>';return;}
+  var html='<div class="card"><div class="card-title">Performance by strategy</div>';
+  rows.forEach(function(e){
+    var k=e[0],b=e[1];
+    var tot=b.wins+b.losses;var wr=tot>0?Math.round(b.wins/tot*100):0;
+    var barC=b.net>=0?'var(--green)':'var(--red)';
+    html+='<div class="stat-row">'+
+      '<div style="flex:1">'+
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap">'+
+          '<span style="font-weight:700;font-size:13px">'+k+'</span>'+
+          '<span class="pill '+(b.net>=0?'p-win':'p-loss')+'">'+fp(b.net)+'</span>'+
+          (b.prem>0?'<span style="font-size:12px;color:var(--green)">'+fmt(b.prem)+' generated</span>':'')+
+        '</div>'+
+        '<div style="display:flex;gap:12px;font-size:12px;color:var(--txt2);flex-wrap:wrap;margin-bottom:3px">'+
+          '<span>'+b.count+' position'+(b.count!==1?'s':'')+'</span>'+
+          (tot>0?'<span>Win rate: <strong style="color:var(--txt)">'+wr+'%</strong></span>':'<span>No closed yet</span>')+
+          (tot>0?'<span class="green">'+b.wins+'W</span><span class="red">'+b.losses+'L</span>':'')+
+        '</div>'+
+        '<div class="stat-bar-bg"><div class="stat-bar" style="width:'+wr+'%;background:'+barC+'"></div></div>'+
+      '</div>'+
+    '</div>';
+  });
+  html+='</div>';
+  G('stats-content').innerHTML=html;
+}
+
+/* ============================================================
+   MODALS
+   ============================================================ */
+function openM(id){
+  if(id==='m-log-call'){G('lc-date').value=today();G('lc-qty').value=1;G('lc-strike').value='';G('lc-exp').value='';G('lc-prem').value='';G('lc-err').textContent='';}
+  if(id==='m-close-call'){G('cc-exp-dt').value=today();G('cc-btc-dt').value=today();G('cc-asgn-dt').value=today();G('cc-btc-p').value='';G('cc-err').textContent='';ccTab('exp');}
+  if(id==='m-roll-call'){G('rc-btc').value='';G('rc-date').value=today();G('rc-strike').value='';G('rc-exp').value='';G('rc-prem').value='';G('rc-err').textContent='';G('rc-preview').style.display='none';['rc-btc','rc-prem','rc-qty'].forEach(function(i){G(i).addEventListener('input',previewRC);});}
+  if(id==='m-add-lot'){G('al-sh').value='';G('al-cost').value='';G('al-date').value=today();G('al-err').textContent='';}
+  if(id==='m-upd-price'){G('up-p').value='';G('up-dt').value=today();}
+  if(id==='m-upd-mark'){var pos=getP(activeId);var s=ccStats(pos);if(s.openCall&&s.openCall.markPrice)G('um-p').value=s.openCall.markPrice;else G('um-p').value='';}
+  if(id==='m-chain-event'){G('ce-date').value=today();G('ce-note').value='';G('rl-btc-strike').value='';G('rl-btc-price').value='';G('rl-btc-qty').value=1;G('rl-sto-strike').value='';G('rl-sto-exp').value='';G('rl-sto-qty').value=1;G('rl-sto-prem').value='';G('adj-strike').value='';G('adj-exp').value='';G('adj-qty').value=1;G('adj-price').value='';G('cl-note').value='';G('cl-cost').value='0';G('ce-preview').style.display='none';G('ce-err').textContent='';ceTab('roll');}
+  G(id).classList.add('on');
+}
+function closeM(id){G(id).classList.remove('on');}
+function omClick(e,id){if(e.target===G(id))closeM(id);}
+function openNewModal(){G('m-pick').classList.add('on');}
+function openNewCC(){
+  G('ncc-tk').value='';G('ncc-name').value='';G('ncc-sh').value='';G('ncc-cost').value='';G('ncc-date').value=today();G('ncc-cur').value='';G('ncc-cur-dt').value=today();G('ncc-err').textContent='';
+  G('m-new-cc').classList.add('on');
+}
+function openNewChain(){
+  G('nch-tk').value='';G('nch-name').value='';G('nch-date').value=today();G('nch-err').textContent='';
+  nchLegs=[];G('nch-legs').innerHTML='';G('nch-cost-preview').style.display='none';
+  G('m-new-ch').classList.add('on');
+  addNchLeg();
+}
+
+/* ---- CC MODAL TABS ---- */
+var ccCloseTab='exp';
+function ccTab(t){
+  ccCloseTab=t;
+  var map={exp:'cc-exp',btc:'cc-btc',asgn:'cc-asgn'};
+  Object.values(map).forEach(function(id){G(id).classList.remove('on');});
+  G(map[t]).classList.add('on');
+  document.querySelectorAll('#m-close-call .mtab').forEach(function(el,i){el.classList.toggle('on',['exp','btc','asgn'][i]===t);});
+}
+
+/* ---- CHAIN EVENT TAB ---- */
+function ceTab(t){
+  ceMode=t;
+  ['roll','adj','close'].forEach(function(m,i){
+    G('ce-'+m).classList.toggle('on',m===t);
+    document.querySelectorAll('#m-chain-event .mtab')[i].classList.toggle('on',m===t);
+  });
+  G('ce-preview').style.display='none';
+}
+
+/* ============================================================
+   NEW CHAIN LEGS
+   ============================================================ */
+var nchLegCtr=0;
+function addNchLeg(){
+  nchLegCtr++;var id='nchl-'+nchLegCtr;
+  var div=document.createElement('div');
+  div.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;padding:9px 10px;background:var(--bg2);border-radius:'+getComputedStyle(document.documentElement).getPropertyValue('--rs')+';border:1px solid var(--border)';
+  div.id=id;
+  div.innerHTML=
+    fldH('Action','w70','<select name="action" onchange="previewNCH()"><option>STO</option><option>BTO</option></select>')+
+    fldH('Type','w70','<select name="optType"><option>Call</option><option>Put</option></select>')+
+    fldH('Strike ($)','w85','<input name="strike" type="number" step="0.5" placeholder="450">')+
+    fldH('Expiry','w100','<input name="expiry" type="date">')+
+    fldH('Qty','w60','<input name="qty" type="number" min="1" value="1" oninput="previewNCH()">')+
+    fldH('Price ($)','w80','<input name="price" type="number" step="0.01" placeholder="2.50" oninput="previewNCH()">')+
+    '<div style="display:flex;align-items:flex-end;padding-bottom:2px"><button class="btn btn-r btn-sm" onclick="G(\''+id+'\').remove();previewNCH()">&#10005;</button></div>';
+  G('nch-legs').appendChild(div);
+}
+function fldH(lbl,cls,inner){
+  return '<div class="fld '+cls+'"><label>'+lbl+'</label>'+inner+'</div>';
+}
+function previewNCH(){
+  var rows=document.querySelectorAll('#nch-legs [name=action]');
+  if(!rows.length){G('nch-cost-preview').style.display='none';return;}
+  var net=0;
+  document.querySelectorAll('#nch-legs > div').forEach(function(r){
+    var action=r.querySelector('[name=action]').value;
+    var qty=parseFloat(r.querySelector('[name=qty]').value)||1;
+    var price=parseFloat(r.querySelector('[name=price]').value)||0;
+    net+=action==='STO'?price*qty*100:-price*qty*100;
+    net-=openComm(qty);
+  });
+  G('nch-cost-preview').style.display='block';
+  G('ncp-net').innerHTML=fp(net);
+  G('ncp-free-note').textContent=net<0?'Net debit — free trade tracker will activate as you collect credits':'Net credit — this is an income position';
+}
+
+/* ============================================================
+   SAVE NEW POSITIONS
+   ============================================================ */
+function saveNewCC(){
+  var tk=vv('ncc-tk').trim().toUpperCase();var name=vv('ncc-name').trim();
+  var sh=parseFloat(vv('ncc-sh'))||0;var cost=parseFloat(vv('ncc-cost'))||0;var date=vv('ncc-date');
+  var curP=parseFloat(vv('ncc-cur'))||0;var curDt=vv('ncc-cur-dt');
+  if(!tk){G('ncc-err').textContent='Enter a ticker.';return;}
+  if(!sh||sh<=0){G('ncc-err').textContent='Enter number of shares.';return;}
+  if(!cost||cost<=0){G('ncc-err').textContent='Enter cost per share.';return;}
+  if(!date){G('ncc-err').textContent='Enter purchase date.';return;}
+  var pos={id:Date.now(),type:'cc',ticker:tk,name:name,currentPrice:curP||null,currentPriceDate:curDt||null,
+    lots:[{id:Date.now()+1,shares:sh,costPerShare:cost,date:date,assignedCallId:null}],calls:[]};
+  positions.push(pos);save();closeM('m-new-cc');renderHome();
+}
+
+function saveNewChain(){
+  var tk=vv('nch-tk').trim().toUpperCase();var name=vv('nch-name').trim();
+  var str=vv('nch-str');var date=vv('nch-date');
+  if(!tk){G('nch-err').textContent='Enter a ticker.';return;}
+  if(!name){G('nch-err').textContent='Enter a position name.';return;}
+  if(!date){G('nch-err').textContent='Enter open date.';return;}
+  var legDivs=document.querySelectorAll('#nch-legs > div');
+  if(!legDivs.length){G('nch-err').textContent='Add at least one leg.';return;}
+  var openLegs=[];var ok=true;
+  legDivs.forEach(function(r,i){
+    var stk=r.querySelector('[name=strike]').value;var exp=r.querySelector('[name=expiry]').value;var p=r.querySelector('[name=price]').value;
+    if(!stk||!exp||!p){G('nch-err').textContent='Leg '+(i+1)+': fill in strike, expiry, price.';ok=false;return;}
+    if(parseFloat(p)<=0){G('nch-err').textContent='Leg '+(i+1)+': price must be > 0.';ok=false;return;}
+    openLegs.push({action:r.querySelector('[name=action]').value,optType:r.querySelector('[name=optType]').value,strike:parseFloat(stk),expiry:exp,qty:parseFloat(r.querySelector('[name=qty]').value)||1,price:parseFloat(p)});
+  });
+  if(!ok)return;
+  var pos={id:Date.now(),type:'chain',ticker:tk,name:name,strategy:str,openDate:date,openLegs:openLegs,events:[],closed:false};
+  positions.push(pos);save();closeM('m-new-ch');renderHome();
+}
+
+/* ============================================================
+   CC ACTIONS
+   ============================================================ */
+function getOpenCall(){var pos=getP(activeId);if(!pos)return null;return pos.calls.find(function(c){return c.status==='open';});}
+
+function saveLogCall(){
+  var pos=getP(activeId);if(!pos)return;
+  var hasOpen=pos.calls.some(function(c){return c.status==='open';});
+  if(hasOpen){G('lc-err').textContent='Close or roll the current open call first.';return;}
+  var date=vv('lc-date');var strike=parseFloat(vv('lc-strike'));var exp=vv('lc-exp');var qty=parseFloat(vv('lc-qty'))||1;var prem=parseFloat(vv('lc-prem'));
+  if(!date){G('lc-err').textContent='Enter date.';return;}
+  if(!strike||strike<=0){G('lc-err').textContent='Enter strike.';return;}
+  if(!exp){G('lc-err').textContent='Enter expiry.';return;}
+  if(!prem||prem<=0){G('lc-err').textContent='Enter premium.';return;}
+  pos.calls.push({id:Date.now(),dateSold:date,strike:strike,expiry:exp,qty:qty,premPerShare:prem,btcPrice:null,closeDate:null,markPrice:null,status:'open'});
+  save();closeM('m-log-call');renderDetail();
+}
+
+function saveCloseCall(){
+  var pos=getP(activeId);var c=getOpenCall();if(!c)return;
+  if(ccCloseTab==='exp'){
+    var d=vv('cc-exp-dt');if(!d){G('cc-err').textContent='Enter date.';return;}
+    c.status='expired';c.closeDate=d;
+  } else if(ccCloseTab==='btc'){
+    var p=parseFloat(vv('cc-btc-p'));var d2=vv('cc-btc-dt');
+    if(!p||p<=0){G('cc-err').textContent='Enter buyback price.';return;}
+    if(!d2){G('cc-err').textContent='Enter date.';return;}
+    c.status='btc';c.btcPrice=p;c.closeDate=d2;
+  } else {
+    var d3=vv('cc-asgn-dt');if(!d3){G('cc-err').textContent='Enter date.';return;}
+    c.status='assigned';c.closeDate=d3;
+    // FIFO lot assignment
+    var toAssign=(parseFloat(c.qty)||1)*100;
+    pos.lots.filter(function(l){return !l.assignedCallId;}).sort(function(a,b){return new Date(a.date)-new Date(b.date);}).forEach(function(lot){
+      if(toAssign<=0)return;
+      if(lot.shares<=toAssign){lot.assignedCallId=c.id;toAssign-=lot.shares;}
+      else{var newL={id:Date.now()+Math.random(),shares:toAssign,costPerShare:lot.costPerShare,date:lot.date,assignedCallId:c.id};lot.shares-=toAssign;pos.lots.push(newL);toAssign=0;}
+    });
+  }
+  save();closeM('m-close-call');renderDetail();
+}
+
+function previewRC(){
+  var btc=parseFloat(vv('rc-btc'))||0;var prem=parseFloat(vv('rc-prem'))||0;var qty=parseFloat(vv('rc-qty'))||1;
+  if(!btc&&!prem)return;
+  var btcT=btc*qty*100,premT=prem*qty*100,comm=rollComm(qty);
+  G('rcp-btc').textContent='-$'+btcT.toFixed(2);G('rcp-prem').textContent='+$'+premT.toFixed(2);G('rcp-comm').textContent='-$'+comm.toFixed(2);
+  G('rcp-net').innerHTML=fp(premT-btcT-comm);G('rc-preview').style.display='block';
+}
+
+function saveRollCC(){
+  var pos=getP(activeId);var c=getOpenCall();if(!c)return;
+  var btc=parseFloat(vv('rc-btc'));var date=vv('rc-date');var newStrike=parseFloat(vv('rc-strike'));var newExp=vv('rc-exp');var newQty=parseFloat(vv('rc-qty'))||1;var newPrem=parseFloat(vv('rc-prem'));
+  if(!btc||btc<=0){G('rc-err').textContent='Enter buyback price.';return;}
+  if(!date){G('rc-err').textContent='Enter date.';return;}
+  if(!newStrike||newStrike<=0){G('rc-err').textContent='Enter new strike.';return;}
+  if(!newExp){G('rc-err').textContent='Enter new expiry.';return;}
+  if(!newPrem||newPrem<=0){G('rc-err').textContent='Enter new premium.';return;}
+  c.status='rolled';c.btcPrice=btc;c.closeDate=date;
+  pos.calls.push({id:Date.now(),dateSold:date,strike:newStrike,expiry:newExp,qty:newQty,premPerShare:newPrem,btcPrice:null,closeDate:null,markPrice:null,status:'open'});
+  save();closeM('m-roll-call');renderDetail();
+}
+
+function saveAddLot(){
+  var pos=getP(activeId);if(!pos)return;
+  var sh=parseFloat(vv('al-sh'))||0;var cost=parseFloat(vv('al-cost'))||0;var date=vv('al-date');
+  if(!sh||sh<=0){G('al-err').textContent='Enter shares.';return;}
+  if(!cost||cost<=0){G('al-err').textContent='Enter cost per share.';return;}
+  if(!date){G('al-err').textContent='Enter date.';return;}
+  pos.lots.push({id:Date.now(),shares:sh,costPerShare:cost,date:date,assignedCallId:null});
+  save();closeM('m-add-lot');renderDetail();
+}
+
+function saveUpdPrice(){
+  var pos=getP(activeId);if(!pos)return;
+  var p=parseFloat(vv('up-p'));if(!p||p<=0){alert('Enter a valid price.');return;}
+  pos.currentPrice=p;pos.currentPriceDate=vv('up-dt')||today();
+  save();closeM('m-upd-price');renderDetail();
+}
+
+function saveUpdMark(){
+  var pos=getP(activeId);if(!pos)return;
+  var c=getOpenCall();if(!c)return;
+  var m=parseFloat(vv('um-p'));if(!m||m<0){alert('Enter a valid mark.');return;}
+  c.markPrice=m;save();closeM('m-upd-mark');renderDetail();
+}
+
+function delLot(lid){
+  var pos=getP(activeId);if(!pos||!confirm('Remove this lot?'))return;
+  pos.lots=pos.lots.filter(function(l){return l.id!==lid;});
+  save();renderDetail();
+}
+
+/* ============================================================
+   CHAIN ACTIONS
+   ============================================================ */
+function previewCE(){
+  var cred=0,deb=0,comm2=0;
+  if(ceMode==='roll'){
+    var bqty=parseFloat(vv('rl-btc-qty'))||1;var sqty=parseFloat(vv('rl-sto-qty'))||1;
+    var btcP=parseFloat(vv('rl-btc-price'))||0;var stoP=parseFloat(vv('rl-sto-prem'))||0;
+    deb=btcP*bqty*100;cred=stoP*sqty*100;comm2=closeComm(bqty)+openComm(sqty);
+  } else if(ceMode==='adj'){
+    var action=vv('adj-action');var qty=parseFloat(vv('adj-qty'))||1;var p=parseFloat(vv('adj-price'))||0;
+    comm2=openComm(qty);
+    if(action==='STO') cred=p*qty*100; else deb=p*qty*100;
+  } else {
+    deb=parseFloat(vv('cl-cost'))||0;
+    comm2=(deb>0?closeComm(1):cfg.ef);
+  }
+  var net=cred-deb-comm2;
+  G('cep-cr').textContent=cred>0?'+$'+cred.toFixed(2):'$0.00';
+  G('cep-db').textContent=deb>0?'-$'+deb.toFixed(2):'$0.00';
+  G('cep-cm').textContent='-$'+comm2.toFixed(2);
+  G('cep-net').innerHTML=fp(net);
+  G('ce-preview').style.display='block';
+}
+
+function saveChainEvent(){
+  var pos=getP(activeId);if(!pos)return;
+  var date=vv('ce-date');var note=vv('ce-note');
+  if(!date){G('ce-err').textContent='Enter a date.';return;}
+  var ev={id:Date.now(),date:date,note:note,eventType:ceMode,netCash:0,credits:0,debits:0,commissions:0,detail:'',closed:false};
+
+  if(ceMode==='roll'){
+    var btype=vv('rl-btc-type'),bstk=parseFloat(vv('rl-btc-strike')),bprice=parseFloat(vv('rl-btc-price'))||0,bqty=parseFloat(vv('rl-btc-qty'))||1;
+    var stype=vv('rl-sto-type'),sstk=parseFloat(vv('rl-sto-strike')),sexp=vv('rl-sto-exp'),sqty=parseFloat(vv('rl-sto-qty'))||1,sprem=parseFloat(vv('rl-sto-prem'))||0;
+    if(!bstk||!bprice){G('ce-err').textContent='Fill in the buyback leg.';return;}
+    if(!sstk||!sexp||!sprem){G('ce-err').textContent='Fill in the new leg.';return;}
+    ev.debits=bprice*bqty*100;ev.credits=sprem*sqty*100;ev.commissions=closeComm(bqty)+openComm(sqty);
+    ev.netCash=ev.credits-ev.debits-ev.commissions;
+    ev.detail='BTC '+btype+' $'+bstk.toFixed(2)+' @ $'+bprice.toFixed(2)+' | STO '+stype+' $'+sstk.toFixed(2)+' @ $'+sprem.toFixed(2)+' exp '+sexp;
+  } else if(ceMode==='adj'){
+    var action=vv('adj-action'),atype=vv('adj-type'),astk=parseFloat(vv('adj-strike')),aexp=vv('adj-exp'),aqty=parseFloat(vv('adj-qty'))||1,aprice=parseFloat(vv('adj-price'))||0;
+    if(!astk||!aexp||!aprice){G('ce-err').textContent='Fill in all adjustment fields.';return;}
+    ev.commissions=openComm(aqty);
+    if(action==='STO'){ev.credits=aprice*aqty*100;}else{ev.debits=aprice*aqty*100;}
+    ev.netCash=ev.credits-ev.debits-ev.commissions;
+    ev.detail=action+' '+atype+' $'+astk.toFixed(2)+' @ $'+aprice.toFixed(2)+' exp '+aexp;
+  } else {
+    var finalCost=parseFloat(vv('cl-cost'))||0;var clNote=vv('cl-note');
+    ev.debits=finalCost;ev.commissions=(finalCost>0?closeComm(1):cfg.ef);
+    ev.netCash=-(ev.debits+ev.commissions);ev.closed=true;ev.detail=clNote||'Position closed';
+    pos.closed=true;
+  }
+
+  if(!pos.events) pos.events=[];
+  pos.events.push(ev);save();closeM('m-chain-event');renderDetail();
+  if(ceMode==='close') renderHome();
+}
+
+function reopenChain(){
+  var pos=getP(activeId);if(!pos)return;
+  pos.closed=false;
+  if(pos.events&&pos.events.length){var last=pos.events[pos.events.length-1];if(last.closed)last.closed=false;}
+  save();renderDetail();renderHome();
+}
+
+/* ============================================================
+   DELETE
+   ============================================================ */
+function delPos(pid){
+  if(!confirm('Delete this position and all its data?'))return;
+  positions=positions.filter(function(p){return p.id!==pid;});
+  save();showV('v-home');
+}
+
+/* ============================================================
+   SETTINGS / BACKUP
+   ============================================================ */
+function saveCfg(){
+  cfg.pc=parseFloat(vv('s-pc'))||0;cfg.af=parseFloat(vv('s-af'))||0;cfg.ef=parseFloat(vv('s-ef'))||0;
+  save();var ok=G('s-ok');ok.style.display='block';setTimeout(function(){ok.style.display='none';},2000);
+}
+function getBK(){return{version:1,exportedAt:new Date().toISOString(),positions:positions,settings:cfg};}
+function exportBK(){
+  var b=new Blob([JSON.stringify(getBK(),null,2)],{type:'application/json'});
+  var u=URL.createObjectURL(b);var a=document.createElement('a');
+  a.href=u;a.download='options_backup_'+today()+'.json';
+  document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},100);
+}
+function showBKText(){G('bk-txt').value=JSON.stringify(getBK(),null,2);G('bk-wrap').style.display='block';G('bk-txt').select();}
+function previewRS(){
+  var raw=G('rs-txt').value.trim();if(!raw){G('rs-msg').innerHTML='<div class="warn">Paste JSON backup first.</div>';return;}
+  var d;try{d=JSON.parse(raw);}catch(e){G('rs-msg').innerHTML='<div style="color:var(--red);font-size:13px">Invalid JSON.</div>';return;}
+  var p=Array.isArray(d.positions)?d.positions:[];
+  pendingRS={positions:p,settings:d.settings||Object.assign({},DEF_CFG)};
+  var pLabel=p.length+' position'+(p.length!==1?'s':'');
+  var dLabel=d.exportedAt?' ('+new Date(d.exportedAt).toLocaleString()+')':'';
+  G('rs-msg').innerHTML='<div class="warn">Backup has '+pLabel+dLabel+'.<br>Click "Replace all data" to confirm.</div>';
+  G('rs-conf').style.display='inline-block';
+}
+function confirmRS(){
+  if(!pendingRS)return;
+  positions=pendingRS.positions;cfg=pendingRS.settings;save();
+  G('rs-msg').innerHTML='<div class="succ">Restored '+positions.length+' position'+(positions.length!==1?'s':'')+'.</div>';
+  G('rs-conf').style.display='none';G('rs-txt').value='';pendingRS=null;
+}
+
+
+/* ============================================================
+   THEME TOGGLE
+   ============================================================ */
+var _theme = localStorage.getItem('ot_theme') || 'auto';
+
+function applyTheme(){
+  document.body.classList.remove('force-dark','force-light');
+  if(_theme==='dark') document.body.classList.add('force-dark');
+  else if(_theme==='light') document.body.classList.add('force-light');
+  // Update button/desc if on settings page
+  var btn=document.getElementById('theme-btn');
+  var desc=document.getElementById('theme-desc');
+  if(btn&&desc){
+    var isDark=_theme==='dark'||((_theme==='auto')&&window.matchMedia('(prefers-color-scheme:dark)').matches);
+    btn.textContent=isDark?'Switch to light mode':'Switch to dark mode';
+    desc.textContent=_theme==='auto'?'Using system setting ('+( isDark?'dark':'light')+')':('Currently using '+_theme+' mode');
+  }
+}
+function toggleTheme(){
+  var isDark=_theme==='dark'||((_theme==='auto')&&window.matchMedia('(prefers-color-scheme:dark)').matches);
+  _theme=isDark?'light':'dark';
+  localStorage.setItem('ot_theme',_theme);
+  applyTheme();
+}
+// Also update button label when entering settings
+var _origShowV=showV;
+showV=function(name){
+  _origShowV(name);
+  if(name==='v-settings') setTimeout(applyTheme,0);
+};
+/* ============================================================
+   INIT
+   ============================================================ */
+load();
+applyTheme();
+renderHome();
+</script>
+
+
+</body></html>
