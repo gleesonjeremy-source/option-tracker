@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <!-- saved from url=(0068)file:///Users/jeremygleeson/Downloads/options_tracker_unified_1.html -->
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
@@ -66,11 +67,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-siz
 /* ---- POSITION CARDS ---- */
 .pos-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden;cursor:pointer;transition:border-color .15s}
 .pos-card:hover{border-color:var(--border2)}
-.pos-hdr{padding:13px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.pos-hdr{padding:13px 16px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .pos-hdr:hover{background:var(--bg2)}
+.pos-hdr>div:first-child{min-width:0;flex:1 1 0}
 .pos-body{display:none;border-top:1px solid var(--border)}.pos-body.on{display:block}
-.pos-ticker{font-size:19px;font-weight:800}
-.pos-sub{font-size:12px;color:var(--txt2);margin-top:2px}
+.pos-ticker{font-size:19px;font-weight:800;display:flex;flex-wrap:wrap;align-items:center;gap:5px;line-height:1.4;word-break:break-word}
+.pos-sub{font-size:12px;color:var(--txt2);margin-top:2px;word-break:break-word}
 
 /* ---- PILLS / BADGES ---- */
 .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap}
@@ -213,8 +215,9 @@ body.force-light{
       <div class="sub">Covered calls • Multi-leg chains • Free trade tracker</div>
     </div>
     <div class="nav-right">
-      <button class="btn btn-sm" onclick="showV(&#39;v-stats&#39;)">Strategy stats</button>
-      <button class="btn btn-sm" onclick="showV(&#39;v-settings&#39;)">Settings</button>
+      <button class="btn btn-sm" onclick="showV('v-stats')">Performance</button>
+      <button class="btn btn-sm" onclick="showV('v-history')">History</button>
+      <button class="btn btn-sm" onclick="showV('v-settings')">Settings</button>
       <button class="btn btn-p btn-sm" onclick="openNewModal()">+ New position</button>
     </div>
   </div>
@@ -247,18 +250,51 @@ body.force-light{
   <div id="det-content"></div>
 </div>
 
-<!-- ================================================ STATS VIEW -->
+<!-- ================================================ PERFORMANCE VIEW -->
 <div id="v-stats" class="view">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;cursor:pointer" onclick="showV(&#39;v-home&#39;)">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;cursor:pointer" onclick="showV('v-home')">
     <span style="font-size:18px;color:var(--txt2)">←</span>
     <span style="font-size:13px;font-weight:600;color:var(--txt2)">Back</span>
   </div>
-  <div class="mg g3" style="margin-bottom:16px">
-    <div class="met"><div class="met-lbl">Best strategy</div><div class="met-val" id="st-best" style="font-size:13px;line-height:1.4">—</div></div>
-    <div class="met"><div class="met-lbl">Most generated</div><div class="met-val" id="st-most" style="font-size:13px;line-height:1.4">—</div></div>
+  <div style="font-size:17px;font-weight:800;margin-bottom:14px">Performance</div>
+  <div class="mg g4" style="margin-bottom:16px">
+    <div class="met"><div class="met-lbl">Closed P&L</div><div class="met-val" id="st-closedpnl">—</div><div class="met-sub">Settled cash only</div></div>
+    <div class="met"><div class="met-lbl">Best category</div><div class="met-val" id="st-best" style="font-size:13px;line-height:1.4">—</div></div>
     <div class="met"><div class="met-lbl">Closed positions</div><div class="met-val" id="st-closed">0</div></div>
+    <div class="met"><div class="met-lbl">Win rate</div><div class="met-val" id="st-wr">—</div><div class="met-sub">Closed trades</div></div>
   </div>
-  <div id="stats-content"><div class="empty">No closed positions yet</div></div>
+  <!-- Tab bar -->
+  <div class="tabs" style="margin-bottom:14px">
+    <button class="tab on" onclick="statsTab('strategy')" id="stab-strategy">By strategy</button>
+    <button class="tab" onclick="statsTab('category')" id="stab-category">By category</button>
+    <button class="tab" onclick="statsTab('ticker')" id="stab-ticker">By ticker</button>
+    <button class="tab" onclick="statsTab('annual')" id="stab-annual">Annual</button>
+  </div>
+  <div id="stats-content"><div class="empty">No positions yet</div></div>
+</div>
+
+<!-- ================================================ HISTORY VIEW -->
+<div id="v-history" class="view">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;cursor:pointer" onclick="showV('v-home')">
+    <span style="font-size:18px;color:var(--txt2)">←</span>
+    <span style="font-size:13px;font-weight:600;color:var(--txt2)">Back</span>
+  </div>
+  <div style="font-size:17px;font-weight:800;margin-bottom:14px">Trade history</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
+    <select id="hist-cat" onchange="renderHistory()" style="font-size:13px;padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt)">
+      <option value="">All categories</option>
+    </select>
+    <select id="hist-year" onchange="renderHistory()" style="font-size:13px;padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt)">
+      <option value="">All years</option>
+    </select>
+    <select id="hist-status" onchange="renderHistory()" style="font-size:13px;padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt)">
+      <option value="">Open &amp; closed</option>
+      <option value="open">Open only</option>
+      <option value="closed">Closed only</option>
+    </select>
+    <input id="hist-search" oninput="renderHistory()" placeholder="Search ticker or name..." style="font-size:13px;padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt);flex:1;min-width:140px">
+  </div>
+  <div id="hist-content"></div>
 </div>
 
 <!-- ================================================ SETTINGS VIEW -->
@@ -278,7 +314,16 @@ body.force-light{
     </div>
   </div>
   <div class="card">
-    <div class="card-title">Commission settings</div>
+    <div class="card-title">Categories</div>
+    <div class="info">Assign a category to each position to track income by type over time.</div>
+    <div id="cat-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="cat-new-input" placeholder="New category name..." style="font-size:13px;padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt);flex:1" onkeydown="if(event.key==='Enter')addCategory()">
+      <button class="btn btn-g" onclick="addCategory()">+ Add</button>
+    </div>
+    <div id="cat-err" class="err-txt"></div>
+  </div>
+  <div class="card">
     <div class="form-row">
       <div class="fld"><label>Per-contract rate ($)</label><input id="s-pc" type="number" step="0.01" min="0" placeholder="0.80"><div class="hint">Charged on open and close per contract</div></div>
       <div class="fld"><label>Assignment fee ($)</label><input id="s-af" type="number" step="0.01" min="0" placeholder="0"></div>
@@ -348,6 +393,9 @@ body.force-light{
       <div class="fld w115"><label>Current price ($)</label><input id="ncc-cur" type="number" step="0.01" placeholder="28.00"></div>
       <div class="fld w115"><label>As of</label><input id="ncc-cur-dt" type="date"></div>
     </div>
+    <div class="form-row">
+      <div class="fld"><label>Category</label><select id="ncc-cat"></select></div>
+    </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
       <button class="btn" onclick="closeM(&#39;m-new-cc&#39;)">Cancel</button>
       <button class="btn btn-p" onclick="saveNewCC()">Create position</button>
@@ -377,6 +425,7 @@ body.force-light{
           <option>Jade lizard</option><option>Custom</option>
         </select>
       </div>
+      <div class="fld w135"><label>Category</label><select id="nch-cat"></select></div>
       <div class="fld w115"><label>Open date</label><input id="nch-date" type="date"></div>
     </div>
     <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Opening position</div>
@@ -627,19 +676,23 @@ body.force-light{
      }
    ============================================================ */
 
-var PKEY='ot_positions_v1', CKEY='ot_cfg_v1';
+var PKEY='ot_positions_v1', CKEY='ot_cfg_v1', CATKEY='ot_categories_v1';
 var DEF_CFG={pc:0.80,af:0,ef:0};
-var positions=[], cfg=Object.assign({},DEF_CFG);
+var DEF_CATS=['Income','Wheel Strategy','Covered Call','Cash Secured Put','Iron Condor','Long Call','Long Put','Bull Call Spread','Bear Put Spread','PMCC','Earnings Play','Speculation'];
+var positions=[], cfg=Object.assign({},DEF_CFG), categories=DEF_CATS.slice();
 var activeId=null, activeCallId=null, nchLegs=[], ceMode='roll';
 var pendingRS=null;
 
 function load(){
   positions=JSON.parse(localStorage.getItem(PKEY)||'[]');
   cfg=JSON.parse(localStorage.getItem(CKEY)||JSON.stringify(DEF_CFG));
+  var saved=JSON.parse(localStorage.getItem(CATKEY)||'null');
+  if(saved) categories=saved; else categories=DEF_CATS.slice();
 }
 function save(){
   localStorage.setItem(PKEY,JSON.stringify(positions));
   localStorage.setItem(CKEY,JSON.stringify(cfg));
+  localStorage.setItem(CATKEY,JSON.stringify(categories));
 }
 function G(id){return document.getElementById(id);}
 function nv(id){return parseFloat(G(id).value)||0;}
@@ -700,6 +753,7 @@ function ccStats(pos){
 
   var grossIn=0,grossOut=0,totalComm=0;
   var openCall=null;
+  var closedPremiums=0; // only settled calls
 
   pos.calls.forEach(function(c){
     var qty=parseFloat(c.qty)||1;
@@ -707,16 +761,23 @@ function ccStats(pos){
     grossIn+=prem*qty*100;
     totalComm+=openComm(qty);
     if(c.status==='open'){openCall=c;}
-    else if(c.status==='expired'){totalComm+=cfg.ef;}
-    else if(c.status==='btc'||c.status==='rolled'){
-      grossOut+=(parseFloat(c.btcPrice)||0)*qty*100;
-      totalComm+=closeComm(qty);
-    } else if(c.status==='assigned'){
-      totalComm+=cfg.af;
+    else{
+      // All non-open calls have settled — count their premium
+      closedPremiums+=prem*qty*100;
+      if(c.status==='expired'){totalComm+=cfg.ef;}
+      else if(c.status==='btc'||c.status==='rolled'){
+        grossOut+=(parseFloat(c.btcPrice)||0)*qty*100;
+        totalComm+=closeComm(qty);
+      } else if(c.status==='assigned'){
+        totalComm+=cfg.af;
+      }
     }
   });
 
-  var optionsNet=grossIn-grossOut-totalComm;
+  // closedOptionsNet = only settled/closed calls (not the live open one)
+  var closedGrossOut=grossOut; // all buybacks are from closed calls
+  var closedOptionsNet=closedPremiums-closedGrossOut-totalComm;
+  var optionsNet=closedOptionsNet; // alias for backward compat
 
   var assignedSharePnL=0;
   pos.lots.filter(function(l){return !!l.assignedCallId;}).forEach(function(l){
@@ -730,14 +791,18 @@ function ccStats(pos){
     openCallUnreal=(parseFloat(openCall.premPerShare)-parseFloat(openCall.markPrice))*qty2*100;
   }
 
-  // Break-even: at what stock price does combined PnL = 0?
-  // Combined = (price - avgCost)*shares + optionsNet = 0
-  // price = avgCost - optionsNet/shares
+  // Break-even using closed options net
   var breakEven=totalShares>0?avgCost-(optionsNet/totalShares):null;
 
+  // THREE P&L BUCKETS:
+  // 1. closedPnL — settled cash only (closed calls + share assigned gains)
+  var closedPnL=closedOptionsNet+assignedSharePnL;
+  // 2. liveCallValue — unrealized value of the open short call (null if no mark set)
+  var liveCallValue=openCallUnreal; // premium collected minus current mark * qty * 100
+  // 3. combinedPnL — everything: closed + live call + share unrealized
   var combinedPnL=null;
   if(shareUnreal!==null||optionsNet!==0||assignedSharePnL!==0){
-    combinedPnL=(shareUnreal||0)+optionsNet+assignedSharePnL;
+    combinedPnL=(shareUnreal||0)+optionsNet+(openCallUnreal||0)+assignedSharePnL;
   }
 
   // Is position fully closed? (all shares assigned and no open call)
@@ -745,7 +810,8 @@ function ccStats(pos){
   var isClosed=(allAssigned&&!openCall)||(pos.manuallyClosed);
 
   return{activeLots,totalShares,avgCost,totalCost,curP,shareUnreal,
-    grossIn,grossOut,totalComm,optionsNet,assignedSharePnL,
+    grossIn,grossOut,totalComm,optionsNet,closedOptionsNet,closedPremiums,
+    closedPnL,liveCallValue,assignedSharePnL,
     openCall,openCallUnreal,breakEven,combinedPnL,isClosed};
 }
 
@@ -830,8 +896,9 @@ function showV(name){
   document.querySelectorAll('.view').forEach(function(v){v.classList.remove('on');});
   G(name).classList.add('on');
   if(name==='v-home') renderHome();
-  if(name==='v-stats') renderStats();
-  if(name==='v-settings'){G('s-pc').value=cfg.pc;G('s-af').value=cfg.af;G('s-ef').value=cfg.ef;}
+  if(name==='v-stats'){renderStats();statsTab('strategy');}
+  if(name==='v-history') renderHistory();
+  if(name==='v-settings'){G('s-pc').value=cfg.pc;G('s-af').value=cfg.af;G('s-ef').value=cfg.ef;renderCatList();populateHistoryFilters();}
 }
 
 /* ============================================================
@@ -844,7 +911,8 @@ function renderHome(){
   positions.forEach(function(pos){
     var net,comm,prem=0;
     if(pos.type==='cc'){
-      var s=ccStats(pos);net=s.combinedPnL;comm=s.totalComm;prem=s.grossIn;
+      var s=ccStats(pos);net=s.combinedPnL;comm=s.totalComm;
+      prem=0;(pos.calls||[]).forEach(function(c){if(c.status!=='open'){prem+=(parseFloat(c.premPerShare)||0)*(parseFloat(c.qty)||1)*100;}});
       if(s.isClosed&&net!==null){closedCount++;if(net>=0)wins++;else losses++;}
       if(!stratNet['Covered call'])stratNet['Covered call']={net:0,prem:0};
       stratNet['Covered call'].net+=(net||0);stratNet['Covered call'].prem+=prem;
@@ -887,7 +955,7 @@ function ccCard(pos){
   return '<div class="pos-card" onclick="openDetail('+pos.id+')">'+
     '<div class="pos-hdr">'+
       '<div>'+
-        '<div class="pos-ticker">'+pos.ticker+' <span class="pill p-cc">Covered call</span>'+(hasOpen?'<span class="pill p-live" style="margin-left:4px">Live call</span>':'')+'</div>'+
+        '<div class="pos-ticker">'+pos.ticker+' <span class="pill p-cc">Covered call</span>'+(hasOpen?'<span class="pill p-live">Live call</span>':'')+'</div>'+
         '<div class="pos-sub">'+s.totalShares+' shares &bull; avg $'+s.avgCost.toFixed(2)+(s.curP?' &bull; now $'+s.curP.toFixed(2):'')+'</div>'+
         (pos.name?'<div style="font-size:12px;color:var(--txt3)">'+pos.name+'</div>':'')+
       '</div>'+
@@ -907,8 +975,8 @@ function chainCard(pos){
     '<div class="pos-hdr">'+
       '<div>'+
         '<div class="pos-ticker">'+pos.ticker+' <span class="pill p-chain">'+pos.strategy+'</span>'+
-        (s.isFree?'<span class="pill p-free" style="margin-left:6px">FREE TRADE</span>':'')+
-        (s.isClosed?'<span class="pill p-closed" style="margin-left:4px">Closed</span>':'')+'</div>'+
+        (s.isFree?'<span class="pill p-free">FREE TRADE</span>':'')+
+        (s.isClosed?'<span class="pill p-closed">Closed</span>':'')+'</div>'+
         '<div class="pos-sub">'+pos.name+'</div>'+
         '<div style="font-size:12px;color:var(--txt2)">'+(pos.events||[]).length+' event'+(((pos.events||[]).length)!==1?'s':'')+' logged</div>'+
       '</div>'+
@@ -953,12 +1021,27 @@ function renderCCDetail(pos){
   if(pos.name) h+=' <span style="font-size:14px;font-weight:400;color:var(--txt2)">'+pos.name+'</span>';
   h+='</div><div style="font-size:12px;color:var(--txt2);margin-bottom:14px">Covered call position &bull; '+pos.calls.length+' call'+(pos.calls.length!==1?'s':'')+' logged</div>';
 
-  // Summary metrics
-  h+='<div class="mg g4" style="margin-bottom:12px">'+
-    '<div class="met"><div class="met-lbl">Combined PnL</div><div class="met-val">'+(s.combinedPnL!==null?fp(s.combinedPnL):'<span class="mu">—</span>')+'</div><div class="met-sub">Shares + options</div></div>'+
-    '<div class="met"><div class="met-lbl">Options net</div><div class="met-val">'+fp(s.optionsNet)+'</div><div class="met-sub">Premiums − buybacks − comm</div></div>'+
-    '<div class="met"><div class="met-lbl">Share gain/loss</div><div class="met-val">'+(s.shareUnreal!==null?fp(s.shareUnreal+(s.assignedSharePnL||0)):'<span class="mu">—</span>')+'</div><div class="met-sub">'+(s.curP?'At $'+s.curP.toFixed(2):'Enter price')+'</div></div>'+
-    '<div class="met"><div class="met-lbl">Commissions</div><div class="met-val red">'+fmt(-s.totalComm)+'</div></div>'+
+  // Summary metrics — THREE P&L BUCKETS
+  h+='<div class="mg g3" style="margin-bottom:8px">'+
+    '<div class="met" style="border:1px solid var(--border)">'+
+      '<div class="met-lbl">Closed P&L</div>'+
+      '<div class="met-val">'+(s.closedPnL!==0||s.assignedSharePnL!==0?fp(s.closedPnL):'<span class="mu">—</span>')+'</div>'+
+      '<div class="met-sub">Settled cash &bull; spendable now</div>'+
+    '</div>'+
+    '<div class="met" style="border:1px solid var(--border)">'+
+      '<div class="met-lbl">Live call value</div>'+
+      '<div class="met-val">'+(s.liveCallValue!==null?fp(s.liveCallValue):'<span class="mu" style="font-size:13px">Set mark to see</span>')+'</div>'+
+      '<div class="met-sub">Unrealized &bull; open short only</div>'+
+    '</div>'+
+    '<div class="met" style="border:1px solid var(--border)">'+
+      '<div class="met-lbl">Combined P&L</div>'+
+      '<div class="met-val">'+(s.combinedPnL!==null?fp(s.combinedPnL):'<span class="mu">—</span>')+'</div>'+
+      '<div class="met-sub">Closed + live + share gain</div>'+
+    '</div>'+
+  '</div>'+
+  '<div class="mg g2" style="margin-bottom:12px">'+
+    '<div class="met"><div class="met-lbl">Share gain/loss</div><div class="met-val">'+(s.shareUnreal!==null?fp(s.shareUnreal+(s.assignedSharePnL||0)):'<span class="mu">—</span>')+'</div><div class="met-sub">'+(s.curP?'At $'+s.curP.toFixed(2):'Enter price to see')+'</div></div>'+
+    '<div class="met"><div class="met-lbl">Commissions paid</div><div class="met-val red">'+fmt(-s.totalComm)+'</div><div class="met-sub">Total across all calls</div></div>'+
   '</div>';
 
   // Live call banner
@@ -991,10 +1074,11 @@ function renderCCDetail(pos){
   h+='<div class="card">'+
     '<div class="sec-hdr"><h3>Options totals</h3></div>'+
     '<div class="mg g3">'+
-      '<div class="met"><div class="met-lbl">Total premiums in</div><div class="met-val green">$'+s.grossIn.toFixed(2)+'</div><div class="met-sub">All STO premiums</div></div>'+
+      '<div class="met"><div class="met-lbl">Closed premiums</div><div class="met-val green">$'+s.closedPremiums.toFixed(2)+'</div><div class="met-sub">Settled calls only</div></div>'+
       '<div class="met"><div class="met-lbl">Total buyback cost</div><div class="met-val red">$'+s.grossOut.toFixed(2)+'</div><div class="met-sub">All BTC paid</div></div>'+
-      '<div class="met"><div class="met-lbl">Net (after comm)</div><div class="met-val">'+fp(s.optionsNet)+'</div><div class="met-sub">True options PnL</div></div>'+
+      '<div class="met"><div class="met-lbl">Net (after comm)</div><div class="met-val">'+fp(s.optionsNet)+'</div><div class="met-sub">True closed options P&L</div></div>'+
     '</div>'+
+    (s.openCall?'<div style="font-size:12px;color:var(--txt2);margin-top:4px;padding-top:8px;border-top:1px solid var(--border)">Live call premium ($'+(parseFloat(s.openCall.premPerShare||0)*parseFloat(s.openCall.qty||1)*100).toFixed(2)+') not counted until closed.</div>':'')+
   '</div>';
 
   // Share lots
@@ -1156,57 +1240,194 @@ function renderChainDetail(pos){
 }
 
 /* ============================================================
-   STATS VIEW
+   CATEGORY HELPERS
    ============================================================ */
-function renderStats(){
-  var by={};
-  var bestStr='—',mostStr='—',bestNet=-Infinity,mostPrem=0;
-  var closedCount=0;
-  positions.forEach(function(pos){
-    var key,net,prem=0,isCl=false;
-    if(pos.type==='cc'){
-      var s=ccStats(pos);key='Covered call';net=s.combinedPnL||0;prem=s.grossIn;isCl=s.isClosed;
-    } else {
-      var s2=chainStats(pos);key=pos.strategy;net=s2.runningNet||0;isCl=s2.isClosed;
+function populateCatSelect(id){
+  var el=G(id);if(!el)return;
+  el.innerHTML=categories.map(function(c){return '<option>'+c+'</option>';}).join('');
+}
+function renderCatList(){
+  var el=G('cat-list');if(!el)return;
+  el.innerHTML='';
+  categories.forEach(function(c,i){
+    var isDefault=DEF_CATS.indexOf(c)>=0;
+    var div=document.createElement('div');
+    div.style.cssText='display:inline-flex;align-items:center;gap:5px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:13px;margin:2px';
+    div.textContent=c;
+    if(!isDefault){
+      var btn=document.createElement('button');
+      btn.textContent='\u2715';
+      btn.style.cssText='background:none;border:none;cursor:pointer;color:var(--txt3);font-size:13px;padding:0 0 0 4px;line-height:1';
+      btn.onclick=(function(name){return function(){deleteCategory(name);};})(c);
+      div.appendChild(btn);
     }
-    if(!by[key])by[key]={wins:0,losses:0,net:0,prem:0,count:0,closedCount:0};
-    by[key].count++;by[key].net+=net;by[key].prem+=prem;
-    if(isCl){closedCount++;by[key].closedCount++;if(net>=0)by[key].wins++;else by[key].losses++;}
+    el.appendChild(div);
   });
-  G('st-closed').textContent=closedCount;
+}
+function addCategory(){
+  var v=G('cat-new-input').value.trim();
+  if(!v){G('cat-err').textContent='Enter a name.';return;}
+  if(categories.indexOf(v)>=0){G('cat-err').textContent='Already exists.';return;}
+  categories.push(v);save();
+  G('cat-new-input').value='';G('cat-err').textContent='';
+  renderCatList();
+}
+function deleteCategory(name){
+  var used=positions.some(function(p){return p.category===name;});
+  if(used&&!confirm(name+' is used by some positions. Remove anyway?'))return;
+  categories=categories.filter(function(c){return c!==name;});
+  save();renderCatList();
+}
+function populateHistoryFilters(){
+  var hc=G('hist-cat');if(!hc)return;
+  hc.innerHTML='<option value="">All categories</option>'+categories.map(function(c){return '<option>'+c+'</option>';}).join('');
+  var years={};
+  positions.forEach(function(p){
+    var yr=p.type==='cc'?(p.lots&&p.lots[0]&&p.lots[0].date||'').substring(0,4):(p.openDate||'').substring(0,4);
+    if(yr)years[yr]=1;
+  });
+  var hy=G('hist-year');
+  hy.innerHTML='<option value="">All years</option>'+Object.keys(years).sort().reverse().map(function(y){return '<option>'+y+'</option>';}).join('');
+}
 
-  var rows=Object.entries(by).sort(function(a,b){return b[1].net-a[1].net;});
-  if(rows.length){
-    bestStr=rows[0][0];
-    var mostE=Object.entries(by).sort(function(a,b){return b[1].prem-a[1].prem;})[0];
-    mostStr=mostE[0];
-    G('st-best').textContent=bestStr;G('st-most').textContent=mostStr;
-  } else {G('st-best').textContent='—';G('st-most').textContent='—';}
-
-  if(!rows.length){G('stats-content').innerHTML='<div class="empty">No positions yet</div>';return;}
-  var html='<div class="card"><div class="card-title">Performance by strategy</div>';
+/* ============================================================
+   STATS / PERFORMANCE VIEW
+   ============================================================ */
+var currentStatsTab='strategy';
+function statsTab(t){
+  currentStatsTab=t;
+  ['strategy','category','ticker','annual'].forEach(function(k){
+    var el=G('stab-'+k);if(el)el.classList.toggle('on',k===t);
+  });
+  renderStatsContent();
+}
+function getPosClosedPnL(pos){
+  if(pos.type==='cc'){var s=ccStats(pos);return s.closedPnL||0;}
+  var s2=chainStats(pos);return s2.isClosed?s2.finalPnL||0:0;
+}
+function getPosStats(pos){
+  var net,closedNet,prem=0,isCl=false,yr='',cat=pos.category||'Uncategorized',ticker=pos.ticker;
+  if(pos.type==='cc'){
+    var s=ccStats(pos);
+    net=s.combinedPnL||0;closedNet=s.closedPnL||0;
+    (pos.calls||[]).forEach(function(c){if(c.status!=='open')prem+=(parseFloat(c.premPerShare)||0)*(parseFloat(c.qty)||1)*100;});
+    isCl=s.isClosed;yr=(pos.lots&&pos.lots[0]&&pos.lots[0].date||'').substring(0,4);
+  } else {
+    var s2=chainStats(pos);net=s2.runningNet||0;closedNet=s2.isClosed?s2.finalPnL||0:0;
+    isCl=s2.isClosed;yr=(pos.openDate||'').substring(0,4);
+    if(s2.openCost>0)prem=s2.openCost;
+  }
+  return{net:net,closedNet:closedNet,prem:prem,isCl:isCl,yr:yr,cat:cat,ticker:ticker};
+}
+function buildGroupRows(groupFn){
+  var by={};var totalClosedPnL=0;var wins=0;var losses=0;var closedCount=0;
+  positions.forEach(function(pos){
+    var d=getPosStats(pos);var key=groupFn(pos,d);
+    if(!by[key])by[key]={wins:0,losses:0,net:0,closedNet:0,prem:0,count:0};
+    by[key].count++;by[key].net+=d.net;by[key].closedNet+=d.closedNet;by[key].prem+=d.prem;
+    if(d.isCl){closedCount++;by[key].wins+=(d.net>=0?1:0);by[key].losses+=(d.net<0?1:0);wins+=(d.net>=0?1:0);losses+=(d.net<0?1:0);}
+    totalClosedPnL+=d.closedNet;
+  });
+  return{by:by,totalClosedPnL:totalClosedPnL,wins:wins,losses:losses,closedCount:closedCount};
+}
+function renderStatsRows(by){
+  if(!Object.keys(by).length)return '<div class="empty">No data yet</div>';
+  var rows=Object.entries(by).sort(function(a,b){return b[1].closedNet-a[1].closedNet;});
+  var html='<div class="card">';
   rows.forEach(function(e){
-    var k=e[0],b=e[1];
-    var tot=b.wins+b.losses;var wr=tot>0?Math.round(b.wins/tot*100):0;
-    var barC=b.net>=0?'var(--green)':'var(--red)';
-    html+='<div class="stat-row">'+
-      '<div style="flex:1">'+
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap">'+
-          '<span style="font-weight:700;font-size:13px">'+k+'</span>'+
-          '<span class="pill '+(b.net>=0?'p-win':'p-loss')+'">'+fp(b.net)+'</span>'+
-          (b.prem>0?'<span style="font-size:12px;color:var(--green)">'+fmt(b.prem)+' generated</span>':'')+
-        '</div>'+
-        '<div style="display:flex;gap:12px;font-size:12px;color:var(--txt2);flex-wrap:wrap;margin-bottom:3px">'+
-          '<span>'+b.count+' position'+(b.count!==1?'s':'')+'</span>'+
-          (tot>0?'<span>Win rate: <strong style="color:var(--txt)">'+wr+'%</strong></span>':'<span>No closed yet</span>')+
-          (tot>0?'<span class="green">'+b.wins+'W</span><span class="red">'+b.losses+'L</span>':'')+
-        '</div>'+
-        '<div class="stat-bar-bg"><div class="stat-bar" style="width:'+wr+'%;background:'+barC+'"></div></div>'+
+    var k=e[0],b=e[1];var tot=b.wins+b.losses;var wr=tot>0?Math.round(b.wins/tot*100):0;
+    var barC=b.closedNet>=0?'var(--green)':'var(--red)';
+    html+='<div class="stat-row"><div style="flex:1;min-width:0">'+
+      '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap">'+
+        '<span style="font-weight:700;font-size:13px">'+k+'</span>'+
+        '<span class="pill '+(b.closedNet>=0?'p-win':'p-loss')+'">'+fp(b.closedNet)+'</span>'+
+        (b.prem>0?'<span style="font-size:11px;color:var(--green)">'+fmt(b.prem)+' premiums</span>':'')+
       '</div>'+
-    '</div>';
+      '<div style="display:flex;gap:10px;font-size:12px;color:var(--txt2);flex-wrap:wrap;margin-bottom:4px">'+
+        '<span>'+b.count+' trade'+(b.count!==1?'s':'')+'</span>'+
+        (tot>0?'<span>'+wr+'% win</span><span class="green">'+b.wins+'W</span><span class="red">'+b.losses+'L</span>':'<span>No closed yet</span>')+
+      '</div>'+
+      '<div class="stat-bar-bg"><div class="stat-bar" style="width:'+wr+'%;background:'+barC+'"></div></div>'+
+    '</div></div>';
   });
-  html+='</div>';
-  G('stats-content').innerHTML=html;
+  return html+'</div>';
+}
+function renderStats(){
+  var d=buildGroupRows(function(pos,s){return s.cat;});
+  var tot=d.wins+d.losses;
+  G('st-closedpnl').innerHTML=fp(d.totalClosedPnL);
+  G('st-closed').textContent=d.closedCount;
+  G('st-wr').textContent=tot>0?Math.round(d.wins/tot*100)+'%':'—';
+  var best=Object.entries(d.by).sort(function(a,b){return b[1].closedNet-a[1].closedNet;})[0];
+  G('st-best').textContent=best?best[0]:'—';
+}
+function renderStatsContent(){
+  var html='';
+  if(currentStatsTab==='strategy'){
+    var d=buildGroupRows(function(pos){return pos.type==='cc'?'Covered call':pos.strategy;});html=renderStatsRows(d.by);
+  } else if(currentStatsTab==='category'){
+    var d2=buildGroupRows(function(pos,s){return s.cat||'Uncategorized';});html=renderStatsRows(d2.by);
+  } else if(currentStatsTab==='ticker'){
+    var d3=buildGroupRows(function(pos,s){return s.ticker;});html=renderStatsRows(d3.by);
+  } else if(currentStatsTab==='annual'){
+    var d4=buildGroupRows(function(pos,s){return s.yr||'Unknown';});html=renderStatsRows(d4.by);
+  }
+  G('stats-content').innerHTML=html||'<div class="empty">No data yet</div>';
+}
+
+/* ============================================================
+   HISTORY VIEW
+   ============================================================ */
+function renderHistory(){
+  populateHistoryFilters();
+  var catF=G('hist-cat')?G('hist-cat').value:'';
+  var yrF=G('hist-year')?G('hist-year').value:'';
+  var stF=G('hist-status')?G('hist-status').value:'';
+  var srch=(G('hist-search')?G('hist-search').value:'').toLowerCase();
+  var filtered=positions.filter(function(pos){
+    var d=getPosStats(pos);
+    if(catF&&d.cat!==catF)return false;
+    if(yrF&&d.yr!==yrF)return false;
+    if(stF==='open'&&d.isCl)return false;
+    if(stF==='closed'&&!d.isCl)return false;
+    if(srch&&pos.ticker.toLowerCase().indexOf(srch)<0&&(pos.name||'').toLowerCase().indexOf(srch)<0)return false;
+    return true;
+  });
+  filtered.sort(function(a,b){
+    var da=a.type==='cc'?(a.lots&&a.lots[0]&&a.lots[0].date||''):a.openDate||'';
+    var db=b.type==='cc'?(b.lots&&b.lots[0]&&b.lots[0].date||''):b.openDate||'';
+    return db.localeCompare(da);
+  });
+  if(!filtered.length){G('hist-content').innerHTML='<div class="empty">No trades match your filters</div>';return;}
+  var el=G('hist-content');
+  el.innerHTML='';
+  var card=document.createElement('div');
+  card.className='card';
+  card.style.cssText='padding:0;overflow:hidden';
+  // Header row
+  var hdr=document.createElement('div');
+  hdr.style.cssText='display:grid;grid-template-columns:80px 1fr 100px 90px 70px;gap:8px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em';
+  hdr.innerHTML='<span>Date</span><span>Position</span><span>Category</span><span>Closed P&L</span><span style="text-align:right">Status</span>';
+  card.appendChild(hdr);
+  filtered.forEach(function(pos){
+    var d=getPosStats(pos);
+    var date=pos.type==='cc'?(pos.lots&&pos.lots[0]&&pos.lots[0].date||''):(pos.openDate||'');
+    var row=document.createElement('div');
+    row.style.cssText='display:grid;grid-template-columns:80px 1fr 100px 90px 70px;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer;align-items:center';
+    row.onclick=function(){openDetail(pos.id);};
+    row.onmouseover=function(){this.style.background='var(--bg2)';};
+    row.onmouseout=function(){this.style.background='';};
+    var statusPill=d.isCl?'<span class="pill p-closed">Closed</span>':'<span class="pill p-open">Open</span>';
+    row.innerHTML=
+      '<span style="font-size:11px;color:var(--txt2)">'+date+'</span>'+
+      '<span style="min-width:0"><div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+pos.ticker+'</div>'+
+        '<div style="font-size:11px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(pos.name||pos.strategy||'')+'</div></span>'+
+      '<span style="font-size:11px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+d.cat+'</span>'+
+      '<span>'+(d.closedNet!==0?fp(d.closedNet):'<span class="mu">\u2014</span>')+'</span>'+
+      '<span style="text-align:right">'+statusPill+'</span>';
+    card.appendChild(row);
+  });
+  el.appendChild(card);
 }
 
 /* ============================================================
@@ -1227,11 +1448,13 @@ function omClick(e,id){if(e.target===G(id))closeM(id);}
 function openNewModal(){G('m-pick').classList.add('on');}
 function openNewCC(){
   G('ncc-tk').value='';G('ncc-name').value='';G('ncc-sh').value='';G('ncc-cost').value='';G('ncc-date').value=today();G('ncc-cur').value='';G('ncc-cur-dt').value=today();G('ncc-err').textContent='';
+  populateCatSelect('ncc-cat');
   G('m-new-cc').classList.add('on');
 }
 function openNewChain(){
   G('nch-tk').value='';G('nch-name').value='';G('nch-date').value=today();G('nch-err').textContent='';
   nchLegs=[];G('nch-legs').innerHTML='';G('nch-cost-preview').style.display='none';
+  populateCatSelect('nch-cat');
   G('m-new-ch').classList.add('on');
   addNchLeg();
 }
@@ -1305,7 +1528,7 @@ function saveNewCC(){
   if(!sh||sh<=0){G('ncc-err').textContent='Enter number of shares.';return;}
   if(!cost||cost<=0){G('ncc-err').textContent='Enter cost per share.';return;}
   if(!date){G('ncc-err').textContent='Enter purchase date.';return;}
-  var pos={id:Date.now(),type:'cc',ticker:tk,name:name,currentPrice:curP||null,currentPriceDate:curDt||null,
+  var pos={id:Date.now(),type:'cc',ticker:tk,name:name,category:vv('ncc-cat')||'',currentPrice:curP||null,currentPriceDate:curDt||null,
     lots:[{id:Date.now()+1,shares:sh,costPerShare:cost,date:date,assignedCallId:null}],calls:[]};
   positions.push(pos);save();closeM('m-new-cc');renderHome();
 }
@@ -1326,7 +1549,7 @@ function saveNewChain(){
     openLegs.push({action:r.querySelector('[name=action]').value,optType:r.querySelector('[name=optType]').value,strike:parseFloat(stk),expiry:exp,qty:parseFloat(r.querySelector('[name=qty]').value)||1,price:parseFloat(p)});
   });
   if(!ok)return;
-  var pos={id:Date.now(),type:'chain',ticker:tk,name:name,strategy:str,openDate:date,openLegs:openLegs,events:[],closed:false};
+  var pos={id:Date.now(),type:'chain',ticker:tk,name:name,strategy:str,category:vv('nch-cat')||'',openDate:date,openLegs:openLegs,events:[],closed:false};
   positions.push(pos);save();closeM('m-new-ch');renderHome();
 }
 
@@ -1559,6 +1782,8 @@ var _origShowV=showV;
 showV=function(name){
   _origShowV(name);
   if(name==='v-settings') setTimeout(applyTheme,0);
+  if(name==='v-stats') setTimeout(function(){renderStats();statsTab('strategy');},0);
+  if(name==='v-history') setTimeout(function(){populateHistoryFilters();renderHistory();},0);
 };
 /* ============================================================
    INIT
