@@ -751,7 +751,7 @@ function ccStats(pos){
   var curP=pos.currentPrice||0;
   var shareUnreal=totalShares>0&&curP>0?(curP-avgCost)*totalShares:null;
 
-  var grossIn=0,grossOut=0,totalComm=0;
+  var grossIn=0,grossOut=0,totalComm=0,closedComm=0;
   var openCall=null;
   var closedPremiums=0; // only settled calls
 
@@ -759,24 +759,29 @@ function ccStats(pos){
     var qty=parseFloat(c.qty)||1;
     var prem=parseFloat(c.premPerShare)||0;
     grossIn+=prem*qty*100;
-    totalComm+=openComm(qty);
-    if(c.status==='open'){openCall=c;}
-    else{
-      // All non-open calls have settled — count their premium
+    if(c.status==='open'){
+      openCall=c;
+      totalComm+=openComm(qty); // track but don't count in closed
+    } else {
+      // All non-open calls have settled
       closedPremiums+=prem*qty*100;
-      if(c.status==='expired'){totalComm+=cfg.ef;}
-      else if(c.status==='btc'||c.status==='rolled'){
+      var openC=openComm(qty);
+      totalComm+=openC;
+      closedComm+=openC;
+      if(c.status==='expired'){
+        totalComm+=cfg.ef;closedComm+=cfg.ef;
+      } else if(c.status==='btc'||c.status==='rolled'){
         grossOut+=(parseFloat(c.btcPrice)||0)*qty*100;
-        totalComm+=closeComm(qty);
+        var closeC=closeComm(qty);
+        totalComm+=closeC;closedComm+=closeC;
       } else if(c.status==='assigned'){
-        totalComm+=cfg.af;
+        totalComm+=cfg.af;closedComm+=cfg.af;
       }
     }
   });
 
-  // closedOptionsNet = only settled/closed calls (not the live open one)
-  var closedGrossOut=grossOut; // all buybacks are from closed calls
-  var closedOptionsNet=closedPremiums-closedGrossOut-totalComm;
+  // closedOptionsNet = only settled/closed calls with only their commissions
+  var closedOptionsNet=closedPremiums-grossOut-closedComm;
   var optionsNet=closedOptionsNet; // alias for backward compat
 
   var assignedSharePnL=0;
