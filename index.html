@@ -897,30 +897,38 @@ function initFirebase(){
 
     // Listen for remote changes
     db.ref(FIREBASE_PATH).on('value', function(snapshot){
-      var data = snapshot.val();
-      if(!data) {
-        // No cloud data yet - push local data up
-        syncToCloud();
-        return;
-      }
-      var remoteHash = JSON.stringify(data);
-      if(remoteHash === lastSyncHash){
+      try{
+        var data = snapshot.val();
+        if(!data) {
+          // No cloud data yet - push local data up
+          syncToCloud();
+          setSyncStatus('ok','Synced');
+          return;
+        }
+        var remoteHash = JSON.stringify(data);
+        if(remoteHash === lastSyncHash){
+          setSyncStatus('ok','Synced');
+          return; // no change
+        }
+        // Cloud has data - load and sanitize it
+        if(Array.isArray(data.positions)) positions = data.positions;
+        if(data.settings && typeof data.settings === 'object') cfg = Object.assign({},DEF_CFG,data.settings);
+        if(Array.isArray(data.strategies)) strategies = data.strategies;
+        if(data.sound) celebSound = data.sound;
+        // Sanitize every position before rendering
+        sanitizeAll();
+        // Save to localStorage as backup
+        localStorage.setItem(PKEY, JSON.stringify(positions));
+        localStorage.setItem(CKEY, JSON.stringify(cfg));
+        localStorage.setItem(STRATKEY, JSON.stringify(strategies));
+        localStorage.setItem(SOUNDKEY, celebSound);
+        lastSyncHash = remoteHash;
         setSyncStatus('ok','Synced');
-        return; // no change
+        renderHome();
+      }catch(e){
+        console.error('Firebase load error:', e);
+        setSyncStatus('err','Load error');
       }
-      // Cloud has data - load it
-      if(data.positions) positions = data.positions;
-      if(data.settings) cfg = data.settings;
-      if(data.strategies) strategies = data.strategies;
-      if(data.sound) celebSound = data.sound;
-      // Save to localStorage as backup
-      localStorage.setItem(PKEY, JSON.stringify(positions));
-      localStorage.setItem(CKEY, JSON.stringify(cfg));
-      localStorage.setItem(STRATKEY, JSON.stringify(strategies));
-      localStorage.setItem(SOUNDKEY, celebSound);
-      lastSyncHash = remoteHash;
-      setSyncStatus('ok','Synced');
-      renderHome();
     }, function(err){
       setSyncStatus('err','Offline');
     });
@@ -971,11 +979,22 @@ var activeId=null, nchLegs=[], ceMode='roll';
 var pendingRS=null;
 
 function load(){
-  positions=JSON.parse(localStorage.getItem(PKEY)||'[]');
-  cfg=JSON.parse(localStorage.getItem(CKEY)||JSON.stringify(DEF_CFG));
-  var saved=JSON.parse(localStorage.getItem(STRATKEY)||'null');
-  if(saved) strategies=saved; else strategies=DEF_STRATEGIES.slice();
+  try{
+    var rawPos=localStorage.getItem(PKEY);
+    positions=rawPos?JSON.parse(rawPos):[];
+    if(!Array.isArray(positions)) positions=[];
+  }catch(e){positions=[];}
+  try{
+    var rawCfg=localStorage.getItem(CKEY);
+    cfg=rawCfg?Object.assign({},DEF_CFG,JSON.parse(rawCfg)):Object.assign({},DEF_CFG);
+  }catch(e){cfg=Object.assign({},DEF_CFG);}
+  try{
+    var saved=JSON.parse(localStorage.getItem(STRATKEY)||'null');
+    strategies=Array.isArray(saved)?saved:DEF_STRATEGIES.slice();
+  }catch(e){strategies=DEF_STRATEGIES.slice();}
   celebSound=localStorage.getItem(SOUNDKEY)||'cha-ching';
+  // Sanitize on every load
+  sanitizeAll();
 }
 function save(){
   localStorage.setItem(PKEY,JSON.stringify(positions));
@@ -1012,6 +1031,103 @@ function dteChip(expStr){
 }
 function getP(id){return positions.find(function(p){return p.id===id;});}
 
+
+
+function uid(){
+  return Date.now().toString(36) + Math.random().toString(36).substr(2,9);
+}
+
+/* ============================================================
+   DATA SANITIZER - runs on every position before use
+   Ensures no missing arrays/fields can crash the app
+   ============================================================ */
+function sanitizePos(pos){
+  if(!pos) return null;
+  // Required fields with safe defaults
+  if(!pos.id) pos.id = Date.now() + Math.random();
+  if(!pos.type) pos.type = 'chain';
+  if(!pos.ticker) pos.ticker = '???';
+  if(typeof pos.closed === 'undefined') pos.closed = false;
+  if(typeof pos.manuallyClosed === 'undefined') pos.manuallyClosed = false;
+
+  if(pos.type === 'cc'){
+    // Covered call safe defaults
+    if(!Array.isArray(pos.lots)) pos.lots = [];
+    if(!Array.isArray(pos.calls)) pos.calls = [];
+    if(!Array.isArray(pos.shareSales)) pos.shareSales = [];
+    pos.lots = pos.lots.map(function(l){
+      if(!l) return null;
+      if(!l.id) l.id = Date.now()+Math.random();
+      if(typeof l.shares !== 'number') l.shares = 0;
+      if(typeof l.costPerShare !== 'number') l.costPerShare = 0;
+      if(!l.date) l.date = '';
+      if(typeof l.assignedCallId === 'undefined') l.assignedCallId = null;
+      if(typeof l.sold === 'undefined') l.sold = false;
+      return l;
+    }).filter(Boolean);
+    pos.calls = pos.calls.map(function(c){
+      if(!c) return null;
+      if(!c.id) c.id = Date.now()+Math.random();
+      if(!c.status) c.status = 'open';
+      if(typeof c.qty !== 'number') c.qty = 1;
+      if(typeof c.premPerShare !== 'number') c.premPerShare = 0;
+      if(!c.dateSold) c.dateSold = '';
+      if(!c.expiry) c.expiry = '';
+      if(typeof c.strike !== 'number') c.strike = 0;
+      if(typeof c.btcPrice === 'undefined') c.btcPrice = null;
+      if(typeof c.closeDate === 'undefined') c.closeDate = null;
+      if(typeof c.markPrice === 'undefined') c.markPrice = null;
+      return c;
+    }).filter(Boolean);
+    pos.shareSales = pos.shareSales.map(function(ss){
+      if(!ss) return null;
+      if(!ss.id) ss.id = Date.now()+Math.random();
+      if(typeof ss.qty !== 'number') ss.qty = 0;
+      if(typeof ss.salePrice !== 'number') ss.salePrice = 0;
+      if(typeof ss.avgCost !== 'number') ss.avgCost = 0;
+      if(typeof ss.pnl !== 'number') ss.pnl = 0;
+      if(!ss.date) ss.date = '';
+      return ss;
+    }).filter(Boolean);
+  } else {
+    // Chain safe defaults
+    if(!Array.isArray(pos.openLegs)) pos.openLegs = [];
+    if(!Array.isArray(pos.events)) pos.events = [];
+    if(!pos.strategy) pos.strategy = 'Custom';
+    if(!pos.openDate) pos.openDate = '';
+    if(!pos.name) pos.name = pos.ticker + ' ' + pos.strategy;
+    pos.openLegs = pos.openLegs.map(function(l){
+      if(!l) return null;
+      if(!l.action) l.action = 'BTO';
+      if(!l.optType) l.optType = 'Call';
+      if(typeof l.strike !== 'number') l.strike = 0;
+      if(!l.expiry) l.expiry = '';
+      if(typeof l.qty !== 'number') l.qty = 1;
+      if(typeof l.price !== 'number') l.price = 0;
+      return l;
+    }).filter(Boolean);
+    pos.events = pos.events.map(function(ev){
+      if(!ev) return null;
+      if(!ev.id) ev.id = Date.now()+Math.random();
+      if(!ev.date) ev.date = '';
+      if(!ev.eventType) ev.eventType = 'adj';
+      if(typeof ev.netCash !== 'number') ev.netCash = 0;
+      if(typeof ev.credits !== 'number') ev.credits = 0;
+      if(typeof ev.debits !== 'number') ev.debits = 0;
+      if(typeof ev.commissions !== 'number') ev.commissions = 0;
+      if(typeof ev.closed === 'undefined') ev.closed = false;
+      if(!ev.detail) ev.detail = '';
+      if(!ev.note) ev.note = '';
+      return ev;
+    }).filter(Boolean);
+  }
+  return pos;
+}
+
+function sanitizeAll(){
+  positions = positions.map(sanitizePos).filter(Boolean);
+}
+
 /* ============================================================
    COMMISSION HELPERS
    ============================================================ */
@@ -1023,7 +1139,11 @@ function rollComm(qty){return openComm(qty)+closeComm(qty);}
    PNL ENGINE — COVERED CALL
    ============================================================ */
 function ccStats(pos){
-  var activeLots=pos.lots.filter(function(l){return !l.assignedCallId&&!l.sold&&l.shares>0;});
+  if(!pos) return {activeLots:[],totalShares:0,avgCost:0,totalCost:0,curP:0,shareUnreal:null,grossIn:0,grossOut:0,totalComm:0,optionsNet:0,closedOptionsNet:0,closedPremiums:0,closedPnL:0,liveCallValue:null,assignedSharePnL:0,shareSalesPnL:0,openCall:null,openCallUnreal:null,breakEven:null,combinedPnL:null,isClosed:false};
+  if(!Array.isArray(pos.lots)) pos.lots=[];
+  if(!Array.isArray(pos.calls)) pos.calls=[];
+  if(!Array.isArray(pos.shareSales)) pos.shareSales=[];
+  var activeLots=pos.lots.filter(function(l){return l&&!l.assignedCallId&&!l.sold&&l.shares>0;});
   var totalShares=activeLots.reduce(function(a,l){return a+l.shares;},0);
   var totalCost=activeLots.reduce(function(a,l){return a+l.shares*l.costPerShare;},0);
   var avgCost=totalShares>0?totalCost/totalShares:0;
@@ -1100,8 +1220,12 @@ function ccStats(pos){
    PNL ENGINE — CHAIN
    ============================================================ */
 function chainStats(pos){
+  if(!pos) return {openCost:0,isDebit:false,originalDebit:0,eventsNet:0,runningNet:0,totalComm:0,costBasisRemaining:null,isFree:false,isClosed:false,finalPnL:null,unrealizedNet:null,totalCreditsFromEvents:0};
+  if(!Array.isArray(pos.openLegs)) pos.openLegs=[];
+  if(!Array.isArray(pos.events)) pos.events=[];
   var openCost=0;
   (pos.openLegs||[]).forEach(function(l){
+    if(!l)return;
     var q=parseFloat(l.qty)||1;
     var p=parseFloat(l.price)||0;
     if(l.action==='STO') openCost+=p*q*100;
@@ -1158,6 +1282,7 @@ function showV(name){
    HOME RENDER
    ============================================================ */
 function renderHome(){
+  try{
   var totalClosedPnL=0,totalClosedPrem=0,totalComm=0,wins=0,losses=0;
   var weekPnL=0,monthPnL=0;
   var now=new Date();
@@ -1230,6 +1355,10 @@ function renderHome(){
   });
 
   G('list-open').innerHTML=open.length?open.map(function(p){return posCard(p);}).join(''):'<div class="empty">No open positions</div>';
+  }catch(e){
+    console.error('renderHome error:',e);
+    var el=G('list-open');if(el)el.innerHTML='<div class="empty">Error loading positions. Please refresh.</div>';
+  }
 }
 
 function posCard(pos){
@@ -1285,9 +1414,16 @@ function openDetail(id){
 }
 
 function renderDetail(){
-  var pos=getP(activeId);if(!pos)return;
-  if(pos.type==='cc') renderCCDetail(pos);
-  else renderChainDetail(pos);
+  try{
+    var pos=getP(activeId);if(!pos)return;
+    sanitizePos(pos);
+    if(pos.type==='cc') renderCCDetail(pos);
+    else renderChainDetail(pos);
+  }catch(e){
+    console.error('renderDetail error:',e);
+    var el=G('det-content');
+    if(el)el.innerHTML='<div class="card"><div class="empty">Error loading position details. Please go back and try again.</div></div>';
+  }
 }
 
 /* ---- CC DETAIL ---- */
@@ -1784,8 +1920,8 @@ function saveNewCC(){
   if(!sh||sh<=0){G('ncc-err').textContent='Enter number of shares.';return;}
   if(!cost||cost<=0){G('ncc-err').textContent='Enter cost per share.';return;}
   if(!date){G('ncc-err').textContent='Enter purchase date.';return;}
-  var pos={id:Date.now(),type:'cc',ticker:tk,name:'',category:'',currentPrice:curP||null,currentPriceDate:curDt||null,
-    lots:[{id:Date.now()+1,shares:sh,costPerShare:cost,date:date,assignedCallId:null}],calls:[]};
+  var pos={id:uid(),type:'cc',ticker:tk,name:'',category:'',currentPrice:curP||null,currentPriceDate:curDt||null,
+    lots:[{id:uid(),shares:sh,costPerShare:cost,date:date,assignedCallId:null}],calls:[]};
   positions.push(pos);save();closeM('m-new-cc');renderHome();
 }
 
@@ -1804,7 +1940,7 @@ function saveNewChain(){
     openLegs.push({action:r.querySelector('[name=action]').value,optType:r.querySelector('[name=optType]').value,strike:parseFloat(stk),expiry:exp,qty:parseFloat(r.querySelector('[name=qty]').value)||1,price:parseFloat(p)});
   });
   if(!ok)return;
-  var pos={id:Date.now(),type:'chain',ticker:tk,name:tk+' '+str,strategy:str,category:'',openDate:date,openLegs:openLegs,events:[],closed:false};
+  var pos={id:uid(),type:'chain',ticker:tk,name:tk+' '+str,strategy:str,category:'',openDate:date,openLegs:openLegs,events:[],closed:false};
   positions.push(pos);save();closeM('m-new-ch');renderHome();
 }
 
@@ -1822,7 +1958,7 @@ function saveLogCall(){
   if(!strike||strike<=0){G('lc-err').textContent='Enter strike.';return;}
   if(!exp){G('lc-err').textContent='Enter expiry.';return;}
   if(!prem||prem<=0){G('lc-err').textContent='Enter premium.';return;}
-  pos.calls.push({id:Date.now(),dateSold:date,strike:strike,expiry:exp,qty:qty,premPerShare:prem,btcPrice:null,closeDate:null,markPrice:null,status:'open'});
+  pos.calls.push({id:uid(),dateSold:date,strike:strike,expiry:exp,qty:qty,premPerShare:prem,btcPrice:null,closeDate:null,markPrice:null,status:'open'});
   save();closeM('m-log-call');renderDetail();
 }
 
@@ -1843,7 +1979,7 @@ function saveCloseCall(){
     pos.lots.filter(function(l){return !l.assignedCallId;}).sort(function(a,b){return new Date(a.date)-new Date(b.date);}).forEach(function(lot){
       if(toAssign<=0)return;
       if(lot.shares<=toAssign){lot.assignedCallId=c.id;toAssign-=lot.shares;}
-      else{var newL={id:Date.now()+Math.random(),shares:toAssign,costPerShare:lot.costPerShare,date:lot.date,assignedCallId:c.id};lot.shares-=toAssign;pos.lots.push(newL);toAssign=0;}
+      else{var newL={id:uid(),shares:toAssign,costPerShare:lot.costPerShare,date:lot.date,assignedCallId:c.id};lot.shares-=toAssign;pos.lots.push(newL);toAssign=0;}
     });
   }
   save();closeM('m-close-call');
@@ -1886,7 +2022,7 @@ function saveRollCC(){
   if(!newExp){G('rc-err').textContent='Enter new expiry.';return;}
   if(!newPrem||newPrem<=0){G('rc-err').textContent='Enter new premium.';return;}
   c.status='rolled';c.btcPrice=btc;c.closeDate=date;
-  pos.calls.push({id:Date.now(),dateSold:date,strike:newStrike,expiry:newExp,qty:newQty,premPerShare:newPrem,btcPrice:null,closeDate:null,markPrice:null,status:'open'});
+  pos.calls.push({id:uid(),dateSold:date,strike:newStrike,expiry:newExp,qty:newQty,premPerShare:newPrem,btcPrice:null,closeDate:null,markPrice:null,status:'open'});
   save();closeM('m-roll-call');renderDetail();
 }
 
@@ -2578,7 +2714,7 @@ function saveSellShares(){
         lot.shares-=remaining;
         // Split lot — create a sold record
         pos.lots.push({
-          id:Date.now()+Math.random(),
+          id:uid(),
           shares:remaining,
           costPerShare:lot.costPerShare,
           date:lot.date,
@@ -2657,7 +2793,7 @@ function saveCloseChain(){
   var note=G('clch-note').value;
   if(!date){G('clch-err').textContent='Enter a date.';return;}
   var net=recv-paid;
-  var ev={id:Date.now(),date:date,note:note||'Position closed',eventType:'close',
+  var ev={id:uid(),date:date,note:note||'Position closed',eventType:'close',
     netCash:net,credits:recv,debits:paid,commissions:0,
     detail:'Closed — received $'+recv.toFixed(2)+', paid $'+paid.toFixed(2),
     closed:true};
@@ -2701,7 +2837,7 @@ function saveChainEvent(){
   var pos=getP(activeId);if(!pos)return;
   var date=vv('ce-date');var note=vv('ce-note');
   if(!date){G('ce-err').textContent='Enter a date.';return;}
-  var ev={id:Date.now(),date:date,note:note,eventType:ceMode,netCash:0,credits:0,debits:0,commissions:0,detail:'',closed:false};
+  var ev={id:uid(),date:date,note:note,eventType:ceMode,netCash:0,credits:0,debits:0,commissions:0,detail:'',closed:false};
 
   if(ceMode==='roll'){
     var btype=vv('rl-btc-type'),bstk=parseFloat(vv('rl-btc-strike')),bprice=parseFloat(vv('rl-btc-price'))||0,bqty=parseFloat(vv('rl-btc-qty'))||1;
