@@ -235,6 +235,7 @@ body.force-light{
     </div>
     <div class="nav-right">
       <button class="btn btn-sm" onclick="showV('v-scorecard')">Scorecard</button>
+      <button class="btn btn-sm" onclick="showV('v-history')">History</button>
       <button class="btn btn-sm" onclick="showV('v-settings')">Settings</button>
       <button class="btn btn-p btn-sm" onclick="openNewModal()">+ New position</button>
     </div>
@@ -283,9 +284,21 @@ body.force-light{
     <div class="met"><div class="met-lbl" id="sc-year-lbl">This year</div><div class="met-val" id="sc-year">—</div><div class="met-sub">Closed P&L</div></div>
   </div>
 
-  <!-- Strategy breakdown -->
+  <!-- Top performers -->
+  <div class="mg g2" style="margin-bottom:16px">
+    <div class="met"><div class="met-lbl">🏆 Most profitable</div><div class="met-val" id="sc-best-pnl" style="font-size:14px;line-height:1.3">—</div><div class="met-sub" id="sc-best-pnl-sub"></div></div>
+    <div class="met"><div class="met-lbl">🎯 Most consistent</div><div class="met-val" id="sc-best-wr" style="font-size:14px;line-height:1.3">—</div><div class="met-sub" id="sc-best-wr-sub"></div></div>
+  </div>
+
+  <!-- Strategy breakdown with sort toggle -->
   <div class="card" style="margin-bottom:12px">
-    <div class="card-title">By strategy</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div class="card-title" style="margin-bottom:0">By strategy</div>
+      <div style="display:flex;gap:6px">
+        <button id="sc-sort-pnl" class="btn btn-sm btn-p" onclick="setSCSort('pnl')">By P&L</button>
+        <button id="sc-sort-wr" class="btn btn-sm" onclick="setSCSort('wr')">By Win Rate</button>
+      </div>
+    </div>
     <div id="sc-strategy-rows"><div class="empty">No closed trades yet</div></div>
   </div>
 
@@ -295,16 +308,24 @@ body.force-light{
     <div id="sc-ticker-rows"><div class="empty">No closed trades yet</div></div>
   </div>
 
-  <!-- Closed trade log -->
-  <div style="font-size:15px;font-weight:700;margin-bottom:10px;margin-top:4px">Closed trades</div>
+</div>
+
+
+<!-- ================================================ HISTORY VIEW -->
+<div id="v-history" class="view">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;cursor:pointer" onclick="showV('v-home')">
+    <span style="font-size:18px;color:var(--txt2)">←</span>
+    <span style="font-size:13px;font-weight:600;color:var(--txt2)">Back</span>
+  </div>
+  <div style="font-size:17px;font-weight:800;margin-bottom:14px">History</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
-    <select id="hist-strategy" onchange="renderScorecard()" style="font-size:13px;padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt)">
-      <option value="">All strategies</option>
-    </select>
-    <select id="hist-year" onchange="renderScorecard()" style="font-size:13px;padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt)">
+    <select id="hist-year" onchange="renderHistory()" style="font-size:13px;padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt)">
       <option value="">All years</option>
     </select>
-    <input id="hist-search" oninput="renderScorecard()" placeholder="Search ticker..." style="font-size:13px;padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt);flex:1;min-width:120px">
+    <select id="hist-strategy" onchange="renderHistory()" style="font-size:13px;padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt)">
+      <option value="">All strategies</option>
+    </select>
+    <input id="hist-search" oninput="renderHistory()" placeholder="Search ticker..." style="font-size:13px;padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt);flex:1;min-width:120px">
   </div>
   <div id="hist-summary" style="margin-bottom:12px"></div>
   <div id="hist-content"></div>
@@ -875,6 +896,74 @@ body.force-light{
     <div id="ss-err" class="err-txt"></div>
   </div>
 </div>
+
+<!-- ROLL LEG -->
+<div id="m-roll-leg" class="overlay" onclick="omClick(event,'m-roll-leg')">
+  <div class="modal">
+    <div class="modal-title">Roll leg</div>
+    <div style="background:var(--bg2);border-radius:var(--rs);padding:9px 12px;margin-bottom:12px;font-size:13px">
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">Current leg (closing)</div>
+      <div id="rl-old-leg-display" style="color:var(--txt)"></div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px">Close old leg</div>
+    <div class="form-row">
+      <div class="fld"><label>Price to close ($/share)</label><input id="rl-close-price" type="number" step="0.01" placeholder="0.00" oninput="previewLegRoll()"></div>
+      <div class="fld w115"><label>Date</label><input id="rl-date" type="date"></div>
+    </div>
+    <div class="div-line"></div>
+    <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px">New leg</div>
+    <div class="form-row">
+      <div class="fld w70"><label>Action</label><select id="rl-new-action"><option>STO</option><option>BTO</option></select></div>
+      <div class="fld w70"><label>Type</label><select id="rl-new-type"><option>Call</option><option>Put</option></select></div>
+      <div class="fld w85"><label>Strike ($)</label><input id="rl-new-strike" type="number" step="0.5" oninput="previewLegRoll()"></div>
+    </div>
+    <div class="form-row">
+      <div class="fld w115"><label>Expiry</label><input id="rl-new-expiry" type="date"></div>
+      <div class="fld w70"><label>Qty</label><input id="rl-new-qty" type="number" min="1" value="1" oninput="previewLegRoll()"></div>
+      <div class="fld w85"><label>Price ($/share)</label><input id="rl-new-price" type="number" step="0.01" oninput="previewLegRoll()"></div>
+    </div>
+    <div id="rl-preview" style="display:none;background:var(--bg2);border-radius:var(--rs);padding:9px 12px;margin-bottom:8px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Close cost</span><span id="rl-prev-close"></span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">New leg proceeds</span><span id="rl-prev-new"></span></div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:5px;margin-top:3px;font-weight:700"><span>Net this roll</span><span id="rl-prev-net"></span></div>
+    </div>
+    <div class="form-row">
+      <div class="fld"><label>Note (optional)</label><input id="rl-note" placeholder="e.g. rolled long down for credit"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+      <button class="btn" onclick="closeM('m-roll-leg')">Cancel</button>
+      <button class="btn btn-p" onclick="saveRollLeg()">Save roll</button>
+    </div>
+    <div id="rl-err" class="err-txt"></div>
+  </div>
+</div>
+
+<!-- CLOSE LEG -->
+<div id="m-close-leg" class="overlay" onclick="omClick(event,'m-close-leg')">
+  <div class="modal">
+    <div class="modal-title">Close leg</div>
+    <div style="background:var(--bg2);border-radius:var(--rs);padding:9px 12px;margin-bottom:12px;font-size:13px">
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">Closing leg</div>
+      <div id="cl-leg-display" style="color:var(--txt)"></div>
+    </div>
+    <div class="form-row">
+      <div class="fld"><label>Received to close ($)</label><input id="cl-recv" type="number" step="0.01" placeholder="0.00" oninput="previewCloseLeg()"><div class="hint">Money IN (0 if paid to close)</div></div>
+      <div class="fld"><label>Paid to close ($)</label><input id="cl-paid" type="number" step="0.01" placeholder="0.00" oninput="previewCloseLeg()"><div class="hint">Money OUT (0 if received)</div></div>
+    </div>
+    <div class="form-row">
+      <div class="fld w115"><label>Date</label><input id="cl-date" type="date"></div>
+      <div class="fld"><label>Note (optional)</label><input id="cl-note2" placeholder="e.g. closed long for profit"></div>
+    </div>
+    <div id="cl-preview" style="display:none;background:var(--bg2);border-radius:var(--rs);padding:9px 12px;margin-bottom:8px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;font-weight:700"><span>Net this close</span><span id="cl-prev-net"></span></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+      <button class="btn" onclick="closeM('m-close-leg')">Cancel</button>
+      <button class="btn btn-p" onclick="saveCloseLeg()">Close leg</button>
+    </div>
+    <div id="cl-err2" class="err-txt"></div>
+  </div>
+</div>
 </div><!-- #app -->
 
 <script>
@@ -1275,6 +1364,7 @@ function showV(name){
   G(name).classList.add('on');
   if(name==='v-home') renderHome();
   if(name==='v-scorecard'){renderScorecard();}
+  if(name==='v-history'){renderHistory();}
   if(name==='v-settings'){G('s-pc').value=cfg.pc;G('s-af').value=cfg.af;G('s-ef').value=cfg.ef;renderStratList();populateHistoryFilters();}
 }
 
@@ -1629,12 +1719,16 @@ function renderChainDetail(pos){
       pos.openLegs.map(function(l,idx){
         var q=parseFloat(l.qty)||1,p=parseFloat(l.price)||0;
         var cf=l.action==='STO'?p*q*100:-p*q*100;
-        return '<div class="trow" style="grid-template-columns:90px 1fr 90px 70px 50px;gap:8px;align-items:start;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px">'+
+        return '<div class="trow" style="grid-template-columns:90px 1fr 90px 70px auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px">'+
           '<span><span class="pill '+(l.action==='STO'?'p-exp':'p-btc')+'">'+l.action+'</span></span>'+
           '<span><strong>'+l.optType+' $'+parseFloat(l.strike).toFixed(2)+'</strong><br><span style="font-size:11px;color:var(--txt2)">'+l.expiry+' &bull; '+q+'x</span></span>'+
           '<span>$'+p.toFixed(2)+'/sh</span>'+
           '<span style="text-align:right">'+fp(cf)+'</span>'+
-          '<span><button class="btn btn-sm" style="font-size:11px;padding:2px 7px" onclick="openEditLeg('+idx+')">Edit</button></span>'+
+          '<span style="display:flex;gap:4px;flex-wrap:wrap">'+
+            '<button class="btn btn-sm btn-pur" style="font-size:11px;padding:2px 7px" onclick="openRollLeg('+idx+')">Roll</button>'+
+            '<button class="btn btn-sm" style="font-size:11px;padding:2px 7px" onclick="openCloseLeg('+idx+')">Close</button>'+
+            '<button class="btn btn-sm" style="font-size:11px;padding:2px 7px" onclick="openEditLeg('+idx+')">Edit</button>'+
+          '</span>'+
         '</div>';
       }).join('')+
     '</div>';
@@ -1734,9 +1828,12 @@ function populateHistoryFilters(){
 
 function getCloseDate(pos){
   if(pos.type==='cc'){
+    var dates=[];
     // Last closed call date
-    var closed=pos.calls.filter(function(c){return c.status!=='open';});
-    if(closed.length) return closed[closed.length-1].closeDate||'';
+    (pos.calls||[]).filter(function(c){return c.status!=='open'&&c.closeDate;}).forEach(function(c){dates.push(c.closeDate);});
+    // Last share sale date
+    (pos.shareSales||[]).forEach(function(ss){if(ss.date)dates.push(ss.date);});
+    if(dates.length) return dates.sort().reverse()[0];
     return '';
   } else {
     var ev=(pos.events||[]).filter(function(e){return e.closed;});
@@ -1762,7 +1859,7 @@ function renderHistory(){
   var filtered=positions.filter(function(pos){
     var isCl=pos.type==='cc'?ccStats(pos).isClosed:chainStats(pos).isClosed;
     if(!isCl)return false;
-    var strategy=pos.type==='cc'?'Covered call':pos.strategy;
+    var strategy=d.strategy||( pos.type==='cc'?'Covered call':pos.strategy);
     if(strF&&strategy!==strF)return false;
     if(yrF&&getCloseYear(pos)!==yrF)return false;
     if(srch&&pos.ticker.toLowerCase().indexOf(srch)<0)return false;
@@ -1805,7 +1902,7 @@ function renderHistory(){
   filtered.forEach(function(pos){
     var d=getPosStats(pos);
     var closeDate=getCloseDate(pos);
-    var strategy=pos.type==='cc'?'Covered call':pos.strategy;
+    var strategy=d.strategy||( pos.type==='cc'?'Covered call':pos.strategy);
     var row=document.createElement('div');
     row.style.cssText='display:grid;grid-template-columns:95px 60px 1fr 110px 90px;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer;align-items:center';
     row.onclick=function(){openDetail(pos.id);};
@@ -2064,15 +2161,23 @@ function delLot(lid){
    CELEBRATION
    ============================================================ */
 var TRADER_JOKES = [
+  "SHOW ME THE MONEY! 🤑",
+  "WINNER WINNER CHICKEN DINNER! 🍗",
+  "That's what I'm talking about! 💰",
+  "Your puts just paid for dinner 🥩",
+  "Theta decay is your best friend 📉➡️💵",
+  "Bears cried. You ate. 🐻😤",
+  "Another one bites the dust 💀📈",
+  "Risk defined. Profits undefined. 🎯",
+  "Your broker felt that one 📈🔥",
+  "The market giveth and you taketh 💸",
+  "Tell your friends. Actually don't. 🤫💰",
+  "Defined risk. Undefined swagger. 😎",
+  "That trade aged like fine wine 🍷",
   "Options trader by day, explaining losses to my spouse by night 📉",
-  "I don't always make money, but when I do, I reload the position 😂",
-  "That's not a gain, that's tuition reimbursement 🎓",
-  "Sir this is a Wendy's. Sir this is a brokerage account 🍔",
-  "Theta gang wins again. Buy something nice 💰",
-  "Your broker felt that 📈",
-  "Closed green. Today was a good day ✅",
-  "Risk defined. Profit undefined. Nice work 🎯"
+  "That's not a gain, that's tuition reimbursement 🎓"
 ];
+var _lastJokeIdx = -1;
 
 function playCaching(){
   playSound(celebSound);
@@ -2259,7 +2364,10 @@ function triggerCelebration(pnl){
   flash.classList.add('on');
   setTimeout(function(){flash.classList.remove('on');},300);
   // Pick random joke
-  var joke=TRADER_JOKES[Math.floor(Math.random()*TRADER_JOKES.length)];
+  var jokeIdx;
+  do { jokeIdx=Math.floor(Math.random()*TRADER_JOKES.length); } while(jokeIdx===_lastJokeIdx&&TRADER_JOKES.length>1);
+  _lastJokeIdx=jokeIdx;
+  var joke=TRADER_JOKES[jokeIdx];
   G('celebrate-pnl').textContent='+'+fmt(pnl);
   G('celebrate-joke').textContent=joke;
   // Slide up card
@@ -2268,6 +2376,156 @@ function triggerCelebration(pnl){
 
 function dismissCelebration(){
   G('celebrate-card').classList.remove('on');
+}
+
+
+/* ============================================================
+   PER-LEG ROLL AND CLOSE
+   ============================================================ */
+var activeLegIdx = null;
+
+function openRollLeg(idx){
+  var pos=getP(activeId);if(!pos||!pos.openLegs)return;
+  var leg=pos.openLegs[idx];if(!leg)return;
+  activeLegIdx=idx;
+  // Show current leg details
+  var legDesc=leg.action+' '+leg.optType+' $'+parseFloat(leg.strike).toFixed(2)+' exp '+leg.expiry+' x'+leg.qty;
+  G('rl-old-leg-display').textContent=legDesc;
+  // Pre-fill new leg with same details
+  var asel=G('rl-new-action');
+  for(var i=0;i<asel.options.length;i++){if(asel.options[i].value===leg.action){asel.selectedIndex=i;break;}}
+  var tsel=G('rl-new-type');
+  for(var i=0;i<tsel.options.length;i++){if(tsel.options[i].value===leg.optType){tsel.selectedIndex=i;break;}}
+  G('rl-new-strike').value=leg.strike||'';
+  G('rl-new-expiry').value='';
+  G('rl-new-qty').value=leg.qty||1;
+  G('rl-new-price').value='';
+  G('rl-close-price').value='';
+  G('rl-date').value=today();
+  G('rl-note').value='';
+  G('rl-preview').style.display='none';
+  G('rl-err').textContent='';
+  G('m-roll-leg').classList.add('on');
+}
+
+function previewLegRoll(){
+  var pos=getP(activeId);if(!pos||activeLegIdx===null)return;
+  var leg=pos.openLegs[activeLegIdx];if(!leg)return;
+  var closePrice=parseFloat(G('rl-close-price').value)||0;
+  var newPrice=parseFloat(G('rl-new-price').value)||0;
+  var newQty=parseFloat(G('rl-new-qty').value)||1;
+  var oldQty=parseFloat(leg.qty)||1;
+  var newAction=G('rl-new-action').value;
+
+  // Cost to close old leg
+  // If original was STO → buying back costs money (debit)
+  // If original was BTO → selling back receives money (credit)
+  var closeCash = leg.action==='STO' ? -(closePrice*oldQty*100) : (closePrice*oldQty*100);
+  // New leg cash
+  var newCash = newAction==='STO' ? (newPrice*newQty*100) : -(newPrice*newQty*100);
+  var net=closeCash+newCash;
+
+  G('rl-prev-close').innerHTML=fp(closeCash);
+  G('rl-prev-new').innerHTML=fp(newCash);
+  G('rl-prev-net').innerHTML=fp(net);
+  G('rl-preview').style.display='block';
+}
+
+function saveRollLeg(){
+  var pos=getP(activeId);if(!pos||activeLegIdx===null)return;
+  var leg=pos.openLegs[activeLegIdx];if(!leg)return;
+  var closePrice=parseFloat(G('rl-close-price').value)||0;
+  var newStrike=parseFloat(G('rl-new-strike').value);
+  var newExpiry=G('rl-new-expiry').value;
+  var newQty=parseFloat(G('rl-new-qty').value)||1;
+  var newPrice=parseFloat(G('rl-new-price').value);
+  var date=G('rl-date').value;
+  var note=G('rl-note').value;
+  var newAction=G('rl-new-action').value;
+  var newType=G('rl-new-type').value;
+
+  if(!date){G('rl-err').textContent='Enter a date.';return;}
+  if(!newStrike||!newExpiry||!newPrice){G('rl-err').textContent='Fill in all new leg fields.';return;}
+
+  var oldQty=parseFloat(leg.qty)||1;
+  var closeCash=leg.action==='STO'?-(closePrice*oldQty*100):(closePrice*oldQty*100);
+  var newCash=newAction==='STO'?(newPrice*newQty*100):-(newPrice*newQty*100);
+  var net=closeCash+newCash;
+  var comm=openComm(oldQty)+openComm(newQty);
+  var netAfterComm=net-comm;
+
+  var detail='Rolled '+leg.action+' '+leg.optType+' $'+parseFloat(leg.strike).toFixed(2)+' → '+newAction+' '+newType+' $'+newStrike.toFixed(2)+' exp '+newExpiry;
+
+  var ev={
+    id:uid(),date:date,note:note,
+    eventType:'roll',
+    netCash:netAfterComm,
+    credits:Math.max(0,net),
+    debits:Math.max(0,-net),
+    commissions:comm,
+    detail:detail,
+    closed:false,
+    legRoll:{
+      oldLeg:{action:leg.action,optType:leg.optType,strike:leg.strike,expiry:leg.expiry,qty:oldQty},
+      newLeg:{action:newAction,optType:newType,strike:newStrike,expiry:newExpiry,qty:newQty,price:newPrice},
+      closePrice:closePrice
+    }
+  };
+  if(!pos.events)pos.events=[];
+  pos.events.push(ev);
+  save();
+  closeM('m-roll-leg');
+  renderDetail();
+}
+
+function openCloseLeg(idx){
+  var pos=getP(activeId);if(!pos||!pos.openLegs)return;
+  var leg=pos.openLegs[idx];if(!leg)return;
+  activeLegIdx=idx;
+  var legDesc=leg.action+' '+leg.optType+' $'+parseFloat(leg.strike).toFixed(2)+' exp '+leg.expiry+' x'+leg.qty;
+  G('cl-leg-display').textContent=legDesc;
+  G('cl-recv').value='';
+  G('cl-paid').value='';
+  G('cl-date').value=today();
+  G('cl-note2').value='';
+  G('cl-preview').style.display='none';
+  G('cl-err2').textContent='';
+  G('m-close-leg').classList.add('on');
+}
+
+function previewCloseLeg(){
+  var recv=parseFloat(G('cl-recv').value)||0;
+  var paid=parseFloat(G('cl-paid').value)||0;
+  var net=recv-paid;
+  G('cl-prev-net').innerHTML=fp(net);
+  G('cl-preview').style.display='block';
+}
+
+function saveCloseLeg(){
+  var pos=getP(activeId);if(!pos||activeLegIdx===null)return;
+  var leg=pos.openLegs[activeLegIdx];if(!leg)return;
+  var recv=parseFloat(G('cl-recv').value)||0;
+  var paid=parseFloat(G('cl-paid').value)||0;
+  var date=G('cl-date').value;
+  var note=G('cl-note2').value;
+  if(!date){G('cl-err2').textContent='Enter a date.';return;}
+  var net=recv-paid;
+  var detail='Closed leg: '+leg.action+' '+leg.optType+' $'+parseFloat(leg.strike).toFixed(2)+' exp '+leg.expiry;
+  var ev={
+    id:uid(),date:date,note:note||detail,
+    eventType:'adj',
+    netCash:net,
+    credits:recv,
+    debits:paid,
+    commissions:0,
+    detail:detail,
+    closed:false
+  };
+  if(!pos.events)pos.events=[];
+  pos.events.push(ev);
+  save();
+  closeM('m-close-leg');
+  renderDetail();
 }
 
 /* ============================================================
@@ -2496,32 +2754,127 @@ function saveEditLot(){
    getPosStats - shared helper used by scorecard and history
    ============================================================ */
 function getPosStats(pos){
-  var net=0,closedNet=0,isCl=false,yr='',ticker=pos.ticker;
+  var net=0,closedNet=0,isCl=false,yr='',ticker=pos.ticker,strategy='';
   if(pos.type==='cc'){
     var s=ccStats(pos);
     net=s.combinedPnL||0;
     closedNet=s.closedPnL||0;
     isCl=s.isClosed;
     yr=(pos.lots&&pos.lots[0]&&pos.lots[0].date||'').substring(0,4);
+    // Shares only if no calls ever logged
+    var hasCalls=(pos.calls||[]).length>0;
+    strategy=hasCalls?'Covered call':'Shares';
   } else {
     var s2=chainStats(pos);
     net=s2.runningNet||0;
     closedNet=s2.isClosed?(s2.finalPnL||0):0;
     isCl=s2.isClosed;
     yr=(pos.openDate||'').substring(0,4);
+    strategy=pos.strategy||'Custom';
   }
-  return{net:net,closedNet:closedNet,isCl:isCl,yr:yr,ticker:ticker};
+  return{net:net,closedNet:closedNet,isCl:isCl,yr:yr,ticker:ticker,strategy:strategy};
+}
+
+
+/* ============================================================
+   HISTORY VIEW
+   ============================================================ */
+function renderHistory(){
+  var closed=positions.filter(function(p){
+    return p.type==='cc'?ccStats(p).isClosed:chainStats(p).isClosed;
+  });
+
+  // Populate filters
+  var years={};var strats={};
+  closed.forEach(function(p){
+    var yr=getCloseYear(p);if(yr)years[yr]=1;
+    var st=p.type==='cc'?'Covered call':p.strategy;strats[st]=1;
+  });
+  var hy=G('hist-year');
+  if(hy)hy.innerHTML='<option value="">All years</option>'+Object.keys(years).sort().reverse().map(function(y){return '<option>'+y+'</option>';}).join('');
+  var hs=G('hist-strategy');
+  if(hs)hs.innerHTML='<option value="">All strategies</option>'+Object.keys(strats).sort().map(function(s){return '<option>'+s+'</option>';}).join('');
+
+  var yrF=G('hist-year')?G('hist-year').value:'';
+  var strF=G('hist-strategy')?G('hist-strategy').value:'';
+  var srch=(G('hist-search')?G('hist-search').value:'').toLowerCase();
+
+  var filtered=closed.filter(function(p){
+    var st=p.type==='cc'?'Covered call':p.strategy;
+    if(yrF&&getCloseYear(p)!==yrF)return false;
+    if(strF&&st!==strF)return false;
+    if(srch&&p.ticker.toLowerCase().indexOf(srch)<0)return false;
+    return true;
+  });
+  filtered.sort(function(a,b){return getCloseDate(b).localeCompare(getCloseDate(a));});
+
+  // Summary
+  var fTotal=0,fWins=0,fLosses=0;
+  filtered.forEach(function(p){
+    var d=getPosStats(p);
+    fTotal+=d.closedNet;
+    if(d.closedNet>=0)fWins++;else fLosses++;
+  });
+  var sumEl=G('hist-summary');
+  if(sumEl){
+    if(filtered.length){
+      sumEl.innerHTML='<div class="mg g3" style="margin-bottom:0">'+
+        '<div class="met"><div class="met-lbl">Filtered P&L</div><div class="met-val">'+fp(fTotal)+'</div></div>'+
+        '<div class="met"><div class="met-lbl">Trades</div><div class="met-val">'+filtered.length+'</div></div>'+
+        '<div class="met"><div class="met-lbl">Win / Loss</div><div class="met-val"><span class="green">'+fWins+'W</span> <span class="mu">/</span> <span class="red">'+fLosses+'L</span></div></div>'+
+      '</div>';
+    } else {
+      sumEl.innerHTML='';
+    }
+  }
+
+  var el=G('hist-content');
+  if(!filtered.length){el.innerHTML='<div class="empty">No closed trades match your filters</div>';return;}
+  el.innerHTML='';
+  var card=document.createElement('div');
+  card.className='card';card.style.cssText='padding:0;overflow:hidden;margin-top:12px';
+  var hdr=document.createElement('div');
+  hdr.style.cssText='display:grid;grid-template-columns:90px 55px 1fr 100px 60px;gap:8px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em';
+  hdr.innerHTML='<span>Closed</span><span>Ticker</span><span>Strategy</span><span>P&L</span><span style="text-align:right">Result</span>';
+  card.appendChild(hdr);
+  filtered.forEach(function(pos){
+    var d=getPosStats(pos);
+    var closeDate=getCloseDate(pos);
+    var strategy=d.strategy||( pos.type==='cc'?'Covered call':pos.strategy);
+    var row=document.createElement('div');
+    row.style.cssText='display:grid;grid-template-columns:90px 55px 1fr 100px 60px;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer;align-items:center';
+    row.onclick=function(){openDetail(pos.id);};
+    row.onmouseover=function(){this.style.background='var(--bg2)';};
+    row.onmouseout=function(){this.style.background='';};
+    var pill=d.closedNet>=0?'<span class="pill p-win">Win</span>':'<span class="pill p-loss">Loss</span>';
+    row.innerHTML=
+      '<span style="font-size:11px;color:var(--txt2)">'+closeDate+'</span>'+
+      '<span style="font-weight:700">'+pos.ticker+'</span>'+
+      '<span style="font-size:12px;color:var(--txt2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+strategy+'</span>'+
+      '<span style="font-weight:700">'+(d.closedNet!==0?fp(d.closedNet):'<span class="mu">—</span>')+'</span>'+
+      '<span style="text-align:right">'+pill+'</span>';
+    card.appendChild(row);
+  });
+  el.appendChild(card);
 }
 
 /* ============================================================
    SCORECARD
    ============================================================ */
+var scSort = 'pnl'; // 'pnl' or 'wr'
+
+function setSCSort(s){
+  scSort=s;
+  G('sc-sort-pnl').className='btn btn-sm'+(s==='pnl'?' btn-p':'');
+  G('sc-sort-wr').className='btn btn-sm'+(s==='wr'?' btn-p':'');
+  renderScorecard();
+}
+
 function renderScorecard(){
   var now=new Date();
   var thisMonth=now.getFullYear()+'-'+('0'+(now.getMonth()+1)).slice(-2);
   var thisYear=String(now.getFullYear());
 
-  // Closed positions only
   var closed=positions.filter(function(p){
     return p.type==='cc'?ccStats(p).isClosed:chainStats(p).isClosed;
   });
@@ -2540,28 +2893,95 @@ function renderScorecard(){
   G('sc-month').innerHTML=closed.length?fp(monthPnL):'<span class="mu">—</span>';
   G('sc-year').innerHTML=closed.length?fp(yearPnL):'<span class="mu">—</span>';
 
-  // Strategy breakdown
+  // Build strategy stats with yearly breakdown
   var byStrat={};
   closed.forEach(function(p){
     var d=getPosStats(p);
-    var strat=p.type==='cc'?'Covered call':p.strategy;
-    if(!byStrat[strat])byStrat[strat]={wins:0,losses:0,pnl:0,count:0};
+    var d0=getPosStats(p);var strat=d0.strategy||( p.type==='cc'?'Covered call':p.strategy);
+    var yr=getCloseYear(p)||'Unknown';
+    if(!byStrat[strat])byStrat[strat]={wins:0,losses:0,pnl:0,count:0,winPnL:0,lossPnL:0,byYear:{}};
     byStrat[strat].count++;
     byStrat[strat].pnl+=d.closedNet;
-    if(d.closedNet>=0)byStrat[strat].wins++;else byStrat[strat].losses++;
+    if(d.closedNet>=0){byStrat[strat].wins++;byStrat[strat].winPnL+=d.closedNet;}
+    else{byStrat[strat].losses++;byStrat[strat].lossPnL+=d.closedNet;}
+    if(!byStrat[strat].byYear[yr])byStrat[strat].byYear[yr]={wins:0,losses:0,pnl:0};
+    byStrat[strat].byYear[yr].pnl+=d.closedNet;
+    if(d.closedNet>=0)byStrat[strat].byYear[yr].wins++;
+    else byStrat[strat].byYear[yr].losses++;
   });
+
+  // Top performers
+  var stratEntries=Object.entries(byStrat);
+  if(stratEntries.length){
+    var bestPnL=stratEntries.slice().sort(function(a,b){return b[1].pnl-a[1].pnl;})[0];
+    var bestWR=stratEntries.slice().filter(function(e){return e[1].count>=1;}).sort(function(a,b){
+      var wa=a[1].wins/(a[1].wins+a[1].losses);
+      var wb=b[1].wins/(b[1].wins+b[1].losses);
+      return wb-wa;
+    })[0];
+    G('sc-best-pnl').textContent=bestPnL[0];
+    G('sc-best-pnl-sub').innerHTML=fp(bestPnL[1].pnl)+' total';
+    if(bestWR){
+      var wr=Math.round(bestWR[1].wins/(bestWR[1].wins+bestWR[1].losses)*100);
+      G('sc-best-wr').textContent=bestWR[0];
+      G('sc-best-wr-sub').innerHTML=wr+'% win rate';
+    }
+  } else {
+    G('sc-best-pnl').textContent='—';G('sc-best-pnl-sub').textContent='';
+    G('sc-best-wr').textContent='—';G('sc-best-wr-sub').textContent='';
+  }
+
+  // Sort strategies
+  var sorted=stratEntries.slice().sort(function(a,b){
+    if(scSort==='wr'){
+      var wa=a[1].count>0?a[1].wins/a[1].count:0;
+      var wb=b[1].count>0?b[1].wins/b[1].count:0;
+      return wb-wa;
+    }
+    return b[1].pnl-a[1].pnl;
+  });
+
   var stratEl=G('sc-strategy-rows');
-  if(!Object.keys(byStrat).length){stratEl.innerHTML='<div class="empty">No closed trades yet</div>';}
+  if(!sorted.length){stratEl.innerHTML='<div class="empty">No closed trades yet</div>';}
   else{
-    stratEl.innerHTML=Object.entries(byStrat).sort(function(a,b){return b[1].pnl-a[1].pnl;}).map(function(e){
-      var k=e[0],v=e[1];var tot=v.wins+v.losses;var wr=tot>0?Math.round(v.wins/tot*100):0;
-      return '<div class="stat-row"><div style="flex:1">'+
-        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px">'+
-        '<span style="font-weight:700;font-size:13px">'+k+'</span>'+
-        '<span class="pill '+(v.pnl>=0?'p-win':'p-loss')+'">'+ fp(v.pnl)+'</span></div>'+
-        '<div style="font-size:12px;color:var(--txt2)">'+v.count+' trade'+(v.count!==1?'s':'')+' &bull; '+wr+'% win &bull; <span class="green">'+ v.wins+'W</span> <span class="red">'+ v.losses+'L</span></div>'+
-        '<div class="stat-bar-bg" style="margin-top:4px"><div class="stat-bar" style="width:'+ wr+'%;background:'+(v.pnl>=0?'var(--green)':'var(--red)')+'"></div></div>'+
-      '</div></div>';
+    stratEl.innerHTML=sorted.map(function(e){
+      var k=e[0],v=e[1];
+      var tot=v.wins+v.losses;
+      var wr=tot>0?Math.round(v.wins/tot*100):0;
+      var avgWin=v.wins>0?v.winPnL/v.wins:0;
+      var avgLoss=v.losses>0?v.lossPnL/v.losses:0;
+      var barC=v.pnl>=0?'var(--green)':'var(--red)';
+
+      // Yearly breakdown rows
+      var yearRows=Object.entries(v.byYear).sort(function(a,b){return b[0].localeCompare(a[0]);}).map(function(ye){
+        var yk=ye[0],yv=ye[1];
+        var ytot=yv.wins+yv.losses;
+        var ywr=ytot>0?Math.round(yv.wins/ytot*100):0;
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-top:1px solid var(--border);font-size:12px">'+
+          '<span style="color:var(--txt2)">'+yk+'</span>'+
+          '<span style="display:flex;gap:10px;align-items:center">'+
+            '<span>'+yv.wins+'W / '+yv.losses+'L ('+ywr+'%)</span>'+
+            '<span style="font-weight:700;min-width:70px;text-align:right">'+fp(yv.pnl)+'</span>'+
+          '</span>'+
+        '</div>';
+      }).join('');
+
+      return '<div style="padding:10px 0;border-bottom:1px solid var(--border)">'+
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">'+
+          '<span style="font-weight:700;font-size:14px">'+k+'</span>'+
+          '<span class="pill '+(v.pnl>=0?'p-win':'p-loss')+'">'+fp(v.pnl)+'</span>'+
+          '<span style="font-size:12px;color:var(--txt2)">'+wr+'% win</span>'+
+        '</div>'+
+        '<div style="display:flex;gap:14px;font-size:12px;color:var(--txt2);flex-wrap:wrap;margin-bottom:6px">'+
+          '<span>'+v.count+' trade'+(v.count!==1?'s':'')+'</span>'+
+          '<span class="green">'+v.wins+'W</span>'+
+          '<span class="red">'+v.losses+'L</span>'+
+          (v.wins>0?'<span>Avg win: '+fp(avgWin)+'</span>':'')+
+          (v.losses>0?'<span>Avg loss: '+fp(avgLoss)+'</span>':'')+
+        '</div>'+
+        '<div class="stat-bar-bg" style="margin-bottom:8px"><div class="stat-bar" style="width:'+wr+'%;background:'+barC+'"></div></div>'+
+        (yearRows?'<div style="margin-top:4px">'+yearRows+'</div>':'')+
+      '</div>';
     }).join('');
   }
 
@@ -2580,77 +3000,15 @@ function renderScorecard(){
       var k=e[0],v=e[1];var tot=v.wins+v.losses;var wr=tot>0?Math.round(v.wins/tot*100):0;
       return '<div class="stat-row"><div style="flex:1">'+
         '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px">'+
-        '<span style="font-weight:700;font-size:14px">'+k+'</span>'+
-        '<span class="pill '+(v.pnl>=0?'p-win':'p-loss')+'">'+ fp(v.pnl)+'</span></div>'+
-        '<div style="font-size:12px;color:var(--txt2)">'+v.count+' trade'+(v.count!==1?'s':'')+' &bull; '+wr+'% win</div>'+
+          '<span style="font-weight:700;font-size:14px">'+k+'</span>'+
+          '<span class="pill '+(v.pnl>=0?'p-win':'p-loss')+'">'+fp(v.pnl)+'</span>'+
+        '</div>'+
+        '<div style="font-size:12px;color:var(--txt2)">'+v.count+' trade'+(v.count!==1?'s':'')+' &bull; '+wr+'% win &bull; <span class="green">'+v.wins+'W</span> <span class="red">'+v.losses+'L</span></div>'+
       '</div></div>';
     }).join('');
   }
-
-  // Populate filters
-  var strats={};var years={};
-  closed.forEach(function(p){
-    var strat=p.type==='cc'?'Covered call':p.strategy;
-    strats[strat]=1;
-    var yr=getCloseYear(p);if(yr)years[yr]=1;
-  });
-  var hs=G('hist-strategy');
-  if(hs)hs.innerHTML='<option value="">All strategies</option>'+Object.keys(strats).sort().map(function(s){return '<option>'+s+'</option>';}).join('');
-  var hy=G('hist-year');
-  if(hy)hy.innerHTML='<option value="">All years</option>'+Object.keys(years).sort().reverse().map(function(y){return '<option>'+y+'</option>';}).join('');
-
-  // Filtered trade log
-  var strF=G('hist-strategy')?G('hist-strategy').value:'';
-  var yrF=G('hist-year')?G('hist-year').value:'';
-  var srch=(G('hist-search')?G('hist-search').value:'').toLowerCase();
-  var filtered=closed.filter(function(p){
-    var strat=p.type==='cc'?'Covered call':p.strategy;
-    if(strF&&strat!==strF)return false;
-    if(yrF&&getCloseYear(p)!==yrF)return false;
-    if(srch&&p.ticker.toLowerCase().indexOf(srch)<0)return false;
-    return true;
-  });
-  filtered.sort(function(a,b){return getCloseDate(b).localeCompare(getCloseDate(a));});
-
-  // Summary row
-  var fTotal=0,fWins=0,fLosses=0;
-  filtered.forEach(function(p){var d=getPosStats(p);fTotal+=d.closedNet;if(d.closedNet>=0)fWins++;else fLosses++;});
-  var sumEl=G('hist-summary');
-  if(filtered.length&&sumEl){
-    sumEl.innerHTML='<div class="mg g3" style="margin-bottom:0">'+
-      '<div class="met"><div class="met-lbl">Filtered P&L</div><div class="met-val">'+fp(fTotal)+'</div></div>'+
-      '<div class="met"><div class="met-lbl">Trades</div><div class="met-val">'+filtered.length+'</div></div>'+
-      '<div class="met"><div class="met-lbl">Win / Loss</div><div class="met-val"><span class="green">'+fWins+'W</span> <span class="mu">/</span> <span class="red">'+fLosses+'L</span></div></div>'+
-    '</div>';
-  } else if(sumEl){sumEl.innerHTML='';}
-
-  if(!filtered.length){G('hist-content').innerHTML='<div class="empty">No closed positions match filters</div>';return;}
-  var el=G('hist-content');el.innerHTML='';
-  var card=document.createElement('div');card.className='card';card.style.cssText='padding:0;overflow:hidden;margin-top:12px';
-  var hdr=document.createElement('div');
-  hdr.style.cssText='display:grid;grid-template-columns:90px 55px 1fr 100px 70px;gap:8px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em';
-  hdr.innerHTML='<span>Closed</span><span>Ticker</span><span>Strategy</span><span>P&L</span><span style="text-align:right">Result</span>';
-  card.appendChild(hdr);
-  filtered.forEach(function(pos){
-    var d=getPosStats(pos);
-    var closeDate=getCloseDate(pos);
-    var strategy=pos.type==='cc'?'Covered call':pos.strategy;
-    var row=document.createElement('div');
-    row.style.cssText='display:grid;grid-template-columns:90px 55px 1fr 100px 70px;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer;align-items:center';
-    row.onclick=function(){openDetail(pos.id);};
-    row.onmouseover=function(){this.style.background='var(--bg2)';};
-    row.onmouseout=function(){this.style.background='';};
-    var resultPill=d.closedNet>=0?'<span class="pill p-win">Win</span>':'<span class="pill p-loss">Loss</span>';
-    row.innerHTML=
-      '<span style="font-size:11px;color:var(--txt2)">'+closeDate+'</span>'+
-      '<span style="font-weight:700">'+pos.ticker+'</span>'+
-      '<span style="font-size:12px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+strategy+'</span>'+
-      '<span style="font-weight:700">'+(d.closedNet!==0?fp(d.closedNet):'<span class="mu">—</span>')+'</span>'+
-      '<span style="text-align:right">'+resultPill+'</span>';
-    card.appendChild(row);
-  });
-  el.appendChild(card);
 }
+
 
 /* ============================================================
    SELL SHARES (CC)
@@ -2936,6 +3294,7 @@ showV=function(name){
   _origShowV(name);
   if(name==='v-settings') setTimeout(function(){applyTheme();initSoundUI();},0);
   if(name==='v-scorecard') setTimeout(function(){renderScorecard();},0);
+  if(name==='v-history') setTimeout(function(){renderHistory();},0);
 
 };
 
