@@ -2006,7 +2006,7 @@ function renderHistory(){
           '</div>'+
           '<div style="display:flex;align-items:center;gap:8px">'+
             '<span style="font-weight:800;font-size:16px" class="'+(p.total>=0?'green':'red')+'">'+fmt(p.total)+'</span>'+
-            '<button class="btn btn-r btn-sm" style="font-size:11px" onclick="event.stopPropagation();deleteHistPosition('+JSON.stringify(p.posId)+')">Delete</button>'+
+            '<button class="btn btn-r btn-sm" style="font-size:11px" data-posid="'+p.posId+'" onclick="event.stopPropagation();deleteHistPosition(this.dataset.posid)">Delete</button>'+
           '</div>';
         c2.appendChild(h2);
         p.events.forEach(function(ev){
