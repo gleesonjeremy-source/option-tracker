@@ -317,15 +317,19 @@ body.force-light{
     <span style="font-size:18px;color:var(--txt2)">←</span>
     <span style="font-size:13px;font-weight:600;color:var(--txt2)">Back</span>
   </div>
-  <div style="font-size:17px;font-weight:800;margin-bottom:14px">History</div>
+  <div style="font-size:17px;font-weight:800;margin-bottom:12px">History</div>
+  <div class="tabs" style="margin-bottom:14px">
+    <button class="tab on" id="htab-events" onclick="histTab('events')">Events</button>
+    <button class="tab" id="htab-positions" onclick="histTab('positions')">Positions</button>
+  </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
     <select id="hist-year" onchange="renderHistory()" style="font-size:13px;padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt)">
       <option value="">All years</option>
     </select>
-    <select id="hist-strategy" onchange="renderHistory()" style="font-size:13px;padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt)">
-      <option value="">All strategies</option>
+    <select id="hist-type" onchange="renderHistory()" style="font-size:13px;padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt)">
+      <option value="">All types</option>
     </select>
-    <input id="hist-search" oninput="renderHistory()" placeholder="Search ticker..." style="font-size:13px;padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt);flex:1;min-width:120px">
+    <input id="hist-search" oninput="renderHistory()" placeholder="Search ticker..." style="font-size:13px;padding:7px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt);flex:1;min-width:100px">
   </div>
   <div id="hist-summary" style="margin-bottom:12px"></div>
   <div id="hist-content"></div>
@@ -380,6 +384,11 @@ body.force-light{
     </div>
     <div style="display:flex;justify-content:flex-end"><button class="btn btn-p" onclick="saveCfg()">Save settings</button></div>
     <div id="s-ok" style="display:none;font-size:12px;color:var(--green);text-align:right;margin-top:6px">Saved.</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Test data</div>
+    <div class="info">Use this to wipe all trades and start fresh with real data.</div>
+    <button class="btn btn-r" onclick="clearAllData()">Clear all data &amp; start fresh</button>
   </div>
   <div class="card">
     <div class="card-title">Backup &amp; restore</div>
@@ -1004,6 +1013,7 @@ function initFirebase(){
         if(data.settings && typeof data.settings === 'object') cfg = Object.assign({},DEF_CFG,data.settings);
         if(Array.isArray(data.strategies)) strategies = data.strategies;
         if(data.sound) celebSound = data.sound;
+        if(data.deletedEvents && typeof data.deletedEvents==='object') deletedEvents=data.deletedEvents;
         // Sanitize every position before rendering
         sanitizeAll();
         // Save to localStorage as backup
@@ -1036,7 +1046,8 @@ function syncToCloud(){
       positions: positions,
       settings: cfg,
       strategies: strategies,
-      sound: celebSound
+      sound: celebSound,
+      deletedEvents: deletedEvents
     };
     var hash = JSON.stringify(data);
     if(hash === lastSyncHash){
@@ -1060,10 +1071,10 @@ function setSyncStatus(state, msg){
   txt.textContent = msg;
 }
 
-var PKEY='ot_positions_v1', CKEY='ot_cfg_v1', STRATKEY='ot_strategies_v1', SOUNDKEY='ot_sound_v1';
+var PKEY='ot_positions_v1', CKEY='ot_cfg_v1', STRATKEY='ot_strategies_v1', SOUNDKEY='ot_sound_v1', DELKEY='ot_deleted_v1';
 var DEF_CFG={pc:0.80,af:0,ef:0};
 var DEF_STRATEGIES=["Bear call spread", "Bear put spread", "Bull call spread", "Bull put spread", "Butterfly", "Broken wing butterfly", "Calendar spread", "Covered call (chain)", "Custom", "Diagonal spread", "Iron butterfly", "Iron condor", "Jade lizard", "Long call", "Long put", "PMCC", "Sell put (CSP)", "Strangle", "Straddle"];
-var positions=[], cfg=Object.assign({},DEF_CFG), strategies=DEF_STRATEGIES.slice(), celebSound='cha-ching';
+var positions=[], cfg=Object.assign({},DEF_CFG), strategies=DEF_STRATEGIES.slice(), celebSound='cha-ching', deletedEvents={};
 var activeId=null, nchLegs=[], ceMode='roll';
 var pendingRS=null;
 
@@ -1082,7 +1093,11 @@ function load(){
     strategies=Array.isArray(saved)?saved:DEF_STRATEGIES.slice();
   }catch(e){strategies=DEF_STRATEGIES.slice();}
   celebSound=localStorage.getItem(SOUNDKEY)||'cha-ching';
-  // Sanitize on every load
+  try{
+    var rawDel=localStorage.getItem(DELKEY);
+    deletedEvents=rawDel?JSON.parse(rawDel):{};
+    if(typeof deletedEvents!=='object'||Array.isArray(deletedEvents)) deletedEvents={};
+  }catch(e){deletedEvents={};}
   sanitizeAll();
 }
 function save(){
@@ -1090,6 +1105,7 @@ function save(){
   localStorage.setItem(CKEY,JSON.stringify(cfg));
   localStorage.setItem(STRATKEY,JSON.stringify(strategies));
   localStorage.setItem(SOUNDKEY,celebSound);
+  localStorage.setItem(DELKEY,JSON.stringify(deletedEvents));
   syncToCloud(); // sync to Firebase
 }
 function G(id){return document.getElementById(id);}
@@ -1356,6 +1372,63 @@ function chainStats(pos){
     finalPnL,unrealizedNet,totalCreditsFromEvents};
 }
 
+
+/* ============================================================
+   SETTLED EVENTS ENGINE - single source of truth for P&L
+   ============================================================ */
+function calcSettledEvents(pos){
+  var events=[];
+  if(pos.type==='cc'){
+    (pos.calls||[]).forEach(function(c){
+      if(c.status==='open') return;
+      var qty=parseFloat(c.qty)||1;
+      var prem=parseFloat(c.premPerShare)||0;
+      var btc=parseFloat(c.btcPrice)||0;
+      var grossIn=prem*qty*100;
+      var grossOut=0;
+      var comm=openComm(qty);
+      var type='Call expired';
+      var date=c.closeDate||c.dateSold||'';
+      var evKey='cc_'+pos.id+'_call_'+c.id;
+      if(c.status==='expired'){comm+=cfg.ef;type='Call expired';}
+      else if(c.status==='btc'){grossOut=btc*qty*100;comm+=closeComm(qty);type='Call BTC';}
+      else if(c.status==='rolled'){grossOut=btc*qty*100;comm+=closeComm(qty);type='Call rolled';}
+      else if(c.status==='assigned'){
+        comm+=cfg.af;type='Assigned';
+        var aLots=(pos.lots||[]).filter(function(l){return l.assignedCallId===c.id;});
+        var sPnL=aLots.reduce(function(a,l){return a+(parseFloat(c.strike)-l.costPerShare)*l.shares;},0);
+        events.push({date:date,type:type,pnl:grossIn-grossOut-comm+sPnL,ticker:pos.ticker,posId:pos.id,evKey:evKey});
+        return;
+      }
+      events.push({date:date,type:type,pnl:grossIn-grossOut-comm,ticker:pos.ticker,posId:pos.id,evKey:evKey});
+    });
+    (pos.shareSales||[]).forEach(function(ss){
+      var evKey='cc_'+pos.id+'_sale_'+ss.id;
+      events.push({date:ss.date,type:'Shares sold',pnl:ss.pnl||0,ticker:pos.ticker,posId:pos.id,
+        detail:ss.qty+' shares @ $'+parseFloat(ss.salePrice||0).toFixed(2),evKey:evKey});
+    });
+  } else {
+    var s=chainStats(pos);
+    if(s.isClosed){
+      var evKey='chain_'+pos.id+'_close';
+      events.push({date:getCloseDate(pos),type:pos.strategy||'Position',pnl:s.finalPnL||0,
+        ticker:pos.ticker,posId:pos.id,isFull:true,evKey:evKey});
+    }
+  }
+  return events;
+}
+
+function calcAllSettledEvents(){
+  var all=[];
+  positions.forEach(function(pos){
+    calcSettledEvents(pos).forEach(function(ev){
+      // Skip deleted events — History is source of truth
+      if(!deletedEvents[ev.evKey||ev.posId+'_'+ev.type+'_'+ev.date]) all.push(ev);
+    });
+  });
+  return all.sort(function(a,b){return(b.date||'').localeCompare(a.date||'');});
+}
+
 /* ============================================================
    VIEWS
    ============================================================ */
@@ -1373,63 +1446,32 @@ function showV(name){
    ============================================================ */
 function renderHome(){
   try{
-  var totalClosedPnL=0,totalClosedPrem=0,totalComm=0,wins=0,losses=0;
-  var weekPnL=0,monthPnL=0;
   var now=new Date();
-  // Week start = last Sunday
   var weekStart=new Date(now);weekStart.setDate(now.getDate()-now.getDay());weekStart.setHours(0,0,0,0);
   var thisMonth=now.getFullYear()+'-'+('0'+(now.getMonth()+1)).slice(-2);
 
-  // Loop ALL positions — settled cash counts regardless of whether position is still open
-  positions.forEach(function(pos){
-    var comm=0,closedPrem=0,settledPnL=0;
-    if(pos.type==='cc'){
-      var s=ccStats(pos);
-      comm=s.totalComm;
-      // Settled call premiums (net of buybacks) — counts even if position still open
-      closedPrem=s.closedOptionsNet||0;
-      // Share sales P&L — counts as settled cash
-      var shareSalesPnL=(s.shareSalesPnL||0);
-      // Assigned shares P&L
-      var assignedPnL=(s.assignedSharePnL||0);
-      settledPnL=closedPrem+shareSalesPnL+assignedPnL;
-      // Win/loss only on fully closed positions
-      if(s.isClosed){
-        if((s.closedPnL||0)>=0)wins++;else losses++;
-      }
-      // Weekly/monthly: use most recent settled call close date
-      var lastSettledDate='';
-      (pos.calls||[]).filter(function(c){return c.status!=='open';})
-        .forEach(function(c){if(c.closeDate>lastSettledDate)lastSettledDate=c.closeDate;});
-      (pos.shareSales||[]).forEach(function(ss){if(ss.date>lastSettledDate)lastSettledDate=ss.date;});
-      if(lastSettledDate){
-        var cd=new Date(lastSettledDate);
-        if(cd>=weekStart) weekPnL+=settledPnL;
-        if(lastSettledDate.substring(0,7)===thisMonth) monthPnL+=settledPnL;
-      }
-    } else {
-      var s2=chainStats(pos);
-      comm=s2.totalComm;
-      // Chain: only count when fully closed
-      if(s2.isClosed){
-        settledPnL=s2.finalPnL||0;
-        if(settledPnL>=0)wins++;else losses++;
-        if(s2.openCost>0)closedPrem+=s2.runningNet;
-        var closeDate=getCloseDate(pos);
-        if(closeDate){
-          var cd2=new Date(closeDate);
-          if(cd2>=weekStart) weekPnL+=settledPnL;
-          if(closeDate.substring(0,7)===thisMonth) monthPnL+=settledPnL;
-        }
-      }
-    }
-    totalClosedPnL+=settledPnL;
-    totalComm+=comm;
-    totalClosedPrem+=closedPrem;
-  });
+  // Single source of truth for all settled P&L
+  var allEvents=calcAllSettledEvents();
+  var totalClosedPnL=allEvents.reduce(function(a,e){return a+(e.pnl||0);},0);
+  var weekPnL=allEvents.filter(function(e){
+    if(!e.date)return false;
+    return new Date(e.date+'T12:00:00')>=weekStart;
+  }).reduce(function(a,e){return a+(e.pnl||0);},0);
+  var monthPnL=allEvents.filter(function(e){
+    return e.date&&e.date.substring(0,7)===thisMonth;
+  }).reduce(function(a,e){return a+(e.pnl||0);},0);
 
-  // Show blank if nothing settled yet
-  var hasAnySettled=totalClosedPnL!==0||totalClosedPrem!==0;
+  var wins=0,losses=0,totalComm=0,totalClosedPrem=0;
+  positions.forEach(function(pos){
+    if(pos.type==='cc'){
+      var s=ccStats(pos);totalComm+=s.totalComm;totalClosedPrem+=s.closedOptionsNet||0;
+      if(s.isClosed){if((s.closedPnL||0)>=0)wins++;else losses++;}
+    } else {
+      var s2=chainStats(pos);totalComm+=s2.totalComm;
+      if(s2.isClosed){if((s2.finalPnL||0)>=0)wins++;else losses++;}
+    }
+  });
+  var hasAnySettled=allEvents.length>0;
   var tot=wins+losses;
   G('hd-total').innerHTML=hasAnySettled?fp(totalClosedPnL):'<span class="mu">—</span>';
   G('hd-week').innerHTML=weekPnL!==0?fp(weekPnL):'<span class="mu">—</span>';
@@ -1849,75 +1891,139 @@ function getCloseYear(pos){
 /* ============================================================
    HISTORY VIEW
    ============================================================ */
+var histViewTab='events';
+
+function histTab(t){
+  histViewTab=t;
+  G('htab-events').classList.toggle('on',t==='events');
+  G('htab-positions').classList.toggle('on',t==='positions');
+  renderHistory();
+}
+
 function renderHistory(){
-  populateHistoryFilters();
-  var yrF=G('hist-year')?G('hist-year').value:'';
-  var strF=G('hist-strategy')?G('hist-strategy').value:'';
-  var srch=(G('hist-search')?G('hist-search').value:'').toLowerCase();
+  try{
+    var allEv=calcAllSettledEvents();
+    // Year filter options
+    var years={};
+    allEv.forEach(function(e){var yr=(e.date||'').substring(0,4);if(yr)years[yr]=1;});
+    var hy=G('hist-year');
+    if(hy)hy.innerHTML='<option value="">All years</option>'+Object.keys(years).sort().reverse().map(function(y){return '<option>'+y+'</option>';}).join('');
+    // Type filter options
+    var types={};
+    allEv.forEach(function(e){if(e.type)types[e.type]=1;});
+    var ht=G('hist-type');
+    if(ht)ht.innerHTML='<option value="">All types</option>'+Object.keys(types).sort().map(function(tp){return '<option>'+tp+'</option>';}).join('');
 
-  // Only closed positions
-  var filtered=positions.filter(function(pos){
-    var isCl=pos.type==='cc'?ccStats(pos).isClosed:chainStats(pos).isClosed;
-    if(!isCl)return false;
-    var strategy=d.strategy||( pos.type==='cc'?'Covered call':pos.strategy);
-    if(strF&&strategy!==strF)return false;
-    if(yrF&&getCloseYear(pos)!==yrF)return false;
-    if(srch&&pos.ticker.toLowerCase().indexOf(srch)<0)return false;
-    return true;
-  });
+    var yrF=G('hist-year')?G('hist-year').value:'';
+    var typeF=G('hist-type')?G('hist-type').value:'';
+    var srch=(G('hist-search')?G('hist-search').value:'').toLowerCase();
 
-  // Sort by close date descending
-  filtered.sort(function(a,b){
-    return getCloseDate(b).localeCompare(getCloseDate(a));
-  });
-
-  // Summary stats
-  var totalPnL=0,wins=0,losses=0;
-  filtered.forEach(function(pos){
-    var d=getPosStats(pos);
-    totalPnL+=d.closedNet;
-    if(d.closedNet>=0)wins++;else losses++;
-  });
-  var sumEl=G('hist-summary');
-  if(filtered.length&&sumEl){
-    sumEl.innerHTML='<div class="mg g3" style="margin-bottom:0">'+
-      '<div class="met"><div class="met-lbl">Filtered P&L</div><div class="met-val">'+fp(totalPnL)+'</div></div>'+
-      '<div class="met"><div class="met-lbl">Trades</div><div class="met-val">'+filtered.length+'</div></div>'+
-      '<div class="met"><div class="met-lbl">Win / Loss</div><div class="met-val"><span class="green">'+wins+'W</span> <span class="mu">/</span> <span class="red">'+losses+'L</span></div></div>'+
-    '</div>';
-  } else if(sumEl){
-    sumEl.innerHTML='';
-  }
-
-  if(!filtered.length){G('hist-content').innerHTML='<div class="empty">No closed positions match your filters</div>';return;}
-  var el=G('hist-content');
-  el.innerHTML='';
-  var card=document.createElement('div');
-  card.className='card';
-  card.style.cssText='padding:0;overflow:hidden;margin-top:12px';
-  var hdr=document.createElement('div');
-  hdr.style.cssText='display:grid;grid-template-columns:95px 60px 1fr 110px 90px;gap:8px;padding:9px 14px;border-bottom:1px solid var(--border);font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em';
-  hdr.innerHTML='<span>Closed</span><span>Ticker</span><span>Strategy</span><span>P&L</span><span style="text-align:right">Result</span>';
-  card.appendChild(hdr);
-  filtered.forEach(function(pos){
-    var d=getPosStats(pos);
-    var closeDate=getCloseDate(pos);
-    var strategy=d.strategy||( pos.type==='cc'?'Covered call':pos.strategy);
-    var row=document.createElement('div');
-    row.style.cssText='display:grid;grid-template-columns:95px 60px 1fr 110px 90px;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer;align-items:center';
-    row.onclick=function(){openDetail(pos.id);};
-    row.onmouseover=function(){this.style.background='var(--bg2)';};
-    row.onmouseout=function(){this.style.background='';};
-    var resultPill=d.closedNet>=0?'<span class="pill p-win">Win</span>':'<span class="pill p-loss">Loss</span>';
-    row.innerHTML=
-      '<span style="font-size:12px;color:var(--txt2)">'+closeDate+'</span>'+
-      '<span style="font-weight:700">'+pos.ticker+'</span>'+
-      '<span style="font-size:12px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+strategy+'</span>'+
-      '<span style="font-weight:700">'+(d.closedNet!==0?fp(d.closedNet):'<span class="mu">—</span>')+'</span>'+
-      '<span style="text-align:right">'+resultPill+'</span>';
-    card.appendChild(row);
-  });
-  el.appendChild(card);
+    if(histViewTab==='events'){
+      var filt=allEv.filter(function(e){
+        if(yrF&&(e.date||'').substring(0,4)!==yrF)return false;
+        if(typeF&&e.type!==typeF)return false;
+        if(srch&&(e.ticker||'').toLowerCase().indexOf(srch)<0)return false;
+        return true;
+      });
+      var tot=filt.reduce(function(a,e){return a+(e.pnl||0);},0);
+      var ws=filt.filter(function(e){return(e.pnl||0)>=0;}).length;
+      var ls=filt.filter(function(e){return(e.pnl||0)<0;}).length;
+      var se=G('hist-summary');
+      if(se&&filt.length){
+        se.innerHTML='<div class="mg g3" style="margin-bottom:0">'+
+          '<div class="met"><div class="met-lbl">Total P&L</div><div class="met-val">'+fp(tot)+'</div></div>'+
+          '<div class="met"><div class="met-lbl">Events</div><div class="met-val">'+filt.length+'</div></div>'+
+          '<div class="met"><div class="met-lbl">Win/Loss</div><div class="met-val"><span class="green">'+ws+'W</span>/<span class="red">'+ls+'L</span></div></div>'+
+        '</div>';
+      } else if(se){se.innerHTML='';}
+      if(!filt.length){G('hist-content').innerHTML='<div class="empty">No events match filters</div>';return;}
+      var el=G('hist-content');el.innerHTML='';
+      var card=document.createElement('div');card.className='card';card.style.cssText='padding:0;overflow:hidden;margin-top:4px';
+      filt.forEach(function(ev){
+        var row=document.createElement('div');
+        row.style.cssText='padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer';
+        row.onclick=function(){openDetail(ev.posId);};
+        row.onmouseover=function(){this.style.background='var(--bg2)';};
+        row.onmouseout=function(){this.style.background='';};
+        var pos=(ev.pnl||0)>=0;
+        var evKeyStr=ev.evKey||'';
+        row.innerHTML=
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">'+
+            '<div style="display:flex;align-items:center;gap:7px">'+
+              '<span style="font-weight:800;font-size:14px">'+ev.ticker+'</span>'+
+              '<span class="pill p-chain" style="font-size:10px;padding:1px 6px">'+ev.type+'</span>'+
+            '</div>'+
+            '<span style="font-weight:700;font-size:15px" class="'+(pos?'green':'red')+'">'+fmt(ev.pnl||0)+'</span>'+
+          '</div>'+
+          '<div style="display:flex;justify-content:space-between;align-items:center">'+
+            '<span style="font-size:11px;color:var(--txt2)">'+(ev.date||'')+(ev.detail?' · '+ev.detail:'')+'</span>'+
+            '<div style="display:flex;gap:5px;align-items:center">'+
+              '<span class="pill '+(pos?'p-win':'p-loss')+'">'+( pos?'Win':'Loss')+'</span>'+
+              '<button class="btn btn-r btn-sm" style="font-size:10px;padding:2px 7px" onclick="event.stopPropagation();deleteHistEvent(\''+evKeyStr+'\')">&times;</button>'+
+            '</div>'+
+          '</div>';
+        card.appendChild(row);
+      });
+      el.appendChild(card);
+    } else {
+      // POSITIONS VIEW - grouped
+      var byPos={};
+      allEv.forEach(function(e){
+        if(!byPos[e.posId])byPos[e.posId]={ticker:e.ticker,events:[],total:0,posId:e.posId};
+        byPos[e.posId].events.push(e);
+        byPos[e.posId].total+=(e.pnl||0);
+      });
+      var posArr=Object.values(byPos).filter(function(p){
+        if(srch&&p.ticker.toLowerCase().indexOf(srch)<0)return false;
+        if(yrF){var ok=p.events.some(function(e){return(e.date||'').substring(0,4)===yrF;});if(!ok)return false;}
+        return true;
+      }).sort(function(a,b){
+        var da=a.events[0]?a.events[0].date||'':'';
+        var db=b.events[0]?b.events[0].date||'':'';
+        return db.localeCompare(da);
+      });
+      var se2=G('hist-summary');
+      if(se2&&posArr.length){
+        var pt=posArr.reduce(function(a,p){return a+p.total;},0);
+        se2.innerHTML='<div class="mg g2" style="margin-bottom:0">'+
+          '<div class="met"><div class="met-lbl">Total P&L</div><div class="met-val">'+fp(pt)+'</div></div>'+
+          '<div class="met"><div class="met-lbl">Positions</div><div class="met-val">'+posArr.length+'</div></div>'+
+        '</div>';
+      } else if(se2){se2.innerHTML='';}
+      if(!posArr.length){G('hist-content').innerHTML='<div class="empty">No positions match filters</div>';return;}
+      var el2=G('hist-content');el2.innerHTML='';
+      posArr.forEach(function(p){
+        var c2=document.createElement('div');c2.className='card';c2.style.cssText='margin-bottom:10px;padding:0;overflow:hidden';
+        var h2=document.createElement('div');
+        h2.style.cssText='padding:11px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;background:var(--bg2)';
+        h2.onclick=function(){openDetail(p.posId);};
+        var pp=getP(p.posId);
+        var strat=pp?(pp.type==='cc'?((pp.calls&&pp.calls.length)?'Covered call':'Shares'):pp.strategy):'Position';
+        h2.innerHTML=
+          '<div style="cursor:pointer" onclick="openDetail(p.posId)">'+
+            '<div style="font-weight:800;font-size:15px">'+ p.ticker+' <span class="pill p-chain" style="font-size:10px;padding:1px 6px">'+ strat+'</span></div>'+
+            '<div style="font-size:11px;color:var(--txt2);margin-top:2px">'+ p.events.length+' event'+(p.events.length!==1?'s':'')+ '</div>'+
+          '</div>'+
+          '<div style="display:flex;align-items:center;gap:8px">'+
+            '<span style="font-weight:800;font-size:16px" class="'+(p.total>=0?'green':'red')+'">'+fmt(p.total)+'</span>'+
+            '<button class="btn btn-r btn-sm" style="font-size:11px" onclick="event.stopPropagation();deleteHistPosition(''+p.posId+'')">Delete</button>'+
+          '</div>';
+        c2.appendChild(h2);
+        p.events.forEach(function(ev){
+          var r2=document.createElement('div');
+          r2.style.cssText='padding:8px 14px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center';
+          r2.innerHTML=
+            '<div>'+
+              '<div style="font-size:12px;color:var(--txt2)">'+ ev.type+(ev.detail?' · '+ev.detail:'')+'</div>'+
+              '<div style="font-size:11px;color:var(--txt3)">'+(ev.date||'')+ '</div>'+
+            '</div>'+
+            '<span class="'+(( ev.pnl||0)>=0?'green':'red')+'" style="font-weight:700;font-size:13px">'+fmt(ev.pnl||0)+'</span>';
+          c2.appendChild(r2);
+        });
+        el2.appendChild(c2);
+      });
+    }
+  }catch(e){console.error('renderHistory error:',e);var ec=G('hist-content');if(ec)ec.innerHTML='<div class="empty">Error loading. Please refresh.</div>';}
 }
 
 /* ============================================================
@@ -2528,6 +2634,45 @@ function saveCloseLeg(){
   renderDetail();
 }
 
+
+/* ============================================================
+   HISTORY DELETE FUNCTIONS
+   ============================================================ */
+
+function clearAllData(){
+  if(!confirm('This will permanently delete ALL positions, history and data. Are you sure?')) return;
+  if(!confirm('Last chance — this cannot be undone. Delete everything?')) return;
+  positions=[];
+  deletedEvents={};
+  save();
+  // Also clear Firebase
+  if(db){db.ref(FIREBASE_PATH).set({positions:[],settings:cfg,strategies:strategies,sound:celebSound,deletedEvents:{}});}
+  renderHome();
+  showV('v-home');
+}
+
+function deleteHistEvent(evKey){
+  if(!evKey){alert('Cannot identify this event.');return;}
+  if(!confirm('Remove this event from History? This will update your P&L.')) return;
+  deletedEvents[evKey]=true;
+  save();
+  renderHistory();
+  renderHome();
+}
+
+function deleteHistPosition(posId){
+  if(!confirm('Delete this entire position and all its history?')) return;
+  // Remove from positions array
+  positions=positions.filter(function(p){return p.id!==posId;});
+  // Also clear any deleted event keys for this position
+  Object.keys(deletedEvents).forEach(function(k){
+    if(k.indexOf(posId)>=0) delete deletedEvents[k];
+  });
+  save();
+  renderHistory();
+  renderHome();
+}
+
 /* ============================================================
    EDIT FUNCTIONS
    ============================================================ */
@@ -2879,14 +3024,10 @@ function renderScorecard(){
     return p.type==='cc'?ccStats(p).isClosed:chainStats(p).isClosed;
   });
 
-  // Month / Year P&L
-  var monthPnL=0,yearPnL=0;
-  closed.forEach(function(p){
-    var d=getPosStats(p);
-    var cd=getCloseDate(p);
-    if(cd.substring(0,7)===thisMonth) monthPnL+=d.closedNet;
-    if(cd.substring(0,4)===thisYear) yearPnL+=d.closedNet;
-  });
+  // Month / Year P&L - use settled events engine
+  var scEvs=calcAllSettledEvents();
+  var monthPnL=scEvs.filter(function(e){return e.date&&e.date.substring(0,7)===thisMonth;}).reduce(function(a,e){return a+(e.pnl||0);},0);
+  var yearPnL=scEvs.filter(function(e){return e.date&&e.date.substring(0,4)===thisYear;}).reduce(function(a,e){return a+(e.pnl||0);},0);
   var monthNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   G('sc-month-lbl').textContent=monthNames[now.getMonth()]+' '+thisYear;
   G('sc-year-lbl').textContent='Year '+thisYear;
