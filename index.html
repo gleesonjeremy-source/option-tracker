@@ -837,6 +837,17 @@ body.force-light{
       <div class="fld"><label>Premium ($/share)</label><input id="ecc-prem" type="number" step="0.01"></div>
       <div class="fld w115"><label>Date sold</label><input id="ecc-datesold" type="date"></div>
     </div>
+    <div class="form-row">
+      <div class="fld"><label>Status</label>
+        <select id="ecc-status" onchange="updateCallEditFields()">
+          <option value="open">Open</option>
+          <option value="expired">Expired worthless</option>
+          <option value="btc">Bought to close (BTC)</option>
+          <option value="rolled">Rolled</option>
+          <option value="assigned">Assigned</option>
+        </select>
+      </div>
+    </div>
     <div class="form-row" id="ecc-btc-row">
       <div class="fld"><label>Buyback price ($/share)</label><input id="ecc-btc" type="number" step="0.01" placeholder="0 if expired/open"></div>
       <div class="fld w115"><label>Close date</label><input id="ecc-closedate" type="date"></div>
@@ -1134,7 +1145,7 @@ function dteChip(expStr){
   if(d<=21)return '<span class="dte-warn">'+d+' DTE</span>';
   return '<span class="dte-ok">'+d+' DTE</span>';
 }
-function getP(id){return positions.find(function(p){return p.id===id;});}
+function getP(id){return positions.find(function(p){return String(p.id)===String(id);});}
 
 
 
@@ -1562,17 +1573,16 @@ function renderDetail(){
 function renderCCDetail(pos){
   var s=ccStats(pos);
   var acts='<div style="display:flex;gap:7px;flex-wrap:wrap">'+
-    '<button class="btn btn-sm" onclick="openM(\'m-upd-price\')">Update price</button>'+
     '<button class="btn btn-sm btn-g" onclick="openM(\'m-add-lot\')">+ Add lot</button>'+
+    (s.totalShares>0?'<button class="btn btn-sm btn-b" onclick="openM(\'m-upd-price\')">Update price</button>':'')+
     (s.totalShares>0?'<button class="btn btn-sm btn-r" onclick="openSellShares()">Sell shares</button>':'')+
     (s.openCall?'':'<button class="btn btn-sm btn-g" onclick="openM(\'m-log-call\')">+ Log call</button>')+
-    '<button class="btn btn-sm" onclick="openEditOpen()">Edit</button>'+
     '<button class="btn btn-sm btn-r" data-posid="'+pos.id+'" onclick="delPos(this.dataset.posid)">Delete</button>'+
   '</div>';
   G('det-actions').innerHTML=acts;
 
   var h='';
-  h+='<div style="font-size:21px;font-weight:800;margin-bottom:4px">'+pos.ticker+'</div>';
+  h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><div style="font-size:21px;font-weight:800">'+pos.ticker+'</div><button class="btn btn-sm" onclick="openEditOpen()">Edit info</button></div>';
   h+='<div style="font-size:12px;color:var(--txt2);margin-bottom:14px">Covered call position &bull; '+pos.calls.length+' call'+(pos.calls.length!==1?'s':'')+' logged</div>';
 
   h+='<div class="mg g3" style="margin-bottom:8px">'+
@@ -1644,7 +1654,7 @@ function renderCCDetail(pos){
         '<span>$'+lot.costPerShare.toFixed(2)+'</span>'+
         '<span>$'+(lot.shares*lot.costPerShare).toFixed(2)+'</span>'+
         '<span>'+(asgn?'<span class="pill p-asgn">Assigned</span>':'<span style="font-size:12px;color:var(--green)">Active</span>')+'</span>'+
-        '<span style="display:flex;gap:4px">'+(asgn?'':'<button class="btn btn-sm" style="font-size:11px;padding:2px 7px" onclick="openEditLot('+lot.id+')">Edit</button><button class="btn btn-r btn-sm" onclick="delLot('+lot.id+')">&#10005;</button>')+' </span>'+
+        '<span style="display:flex;gap:4px">'+(asgn?'':'<button class="btn btn-sm" style="font-size:11px;padding:2px 7px" data-id="'+lot.id+'" onclick="openEditLot(this.dataset.id)">Edit</button><button class="btn btn-r btn-sm" data-delid="'+lot.id+'" onclick="delLot(this.dataset.delid)">&#10005;</button>')+' </span>'+
       '</div>';
     }).join('')+
     '</div>'+
@@ -1676,7 +1686,7 @@ function renderCCDetail(pos){
         '<span><strong>$'+parseFloat(c.strike).toFixed(2)+'</strong><br><span style="font-size:11px;color:var(--txt2)">'+c.expiry+'</span></span>'+
         '<span>$'+prem.toFixed(2)+'/sh<br><span style="font-size:11px;color:var(--txt2)">$'+grossP.toFixed(2)+' total</span></span>'+
         '<span>'+badge+'<br><span style="font-size:11px;color:var(--txt2)">'+result+'</span></span>'+
-        '<span style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px">'+(net!==null?fp(net):'<span class="mu">Open</span>')+'<button class="btn btn-sm" style="font-size:11px;padding:2px 7px" onclick="event.stopPropagation();openEditCall('+c.id+')">Edit</button></span>'+
+        '<span style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px">'+(net!==null?fp(net):'<span class="mu">Open</span>')+'<button class="btn btn-sm" style="font-size:11px;padding:2px 7px" data-callid="'+c.id+'" onclick="event.stopPropagation();openEditCall(this.dataset.callid)">Edit</button></span>'+
       '</div>';
     }).join('')+'</div>';
   }
@@ -1711,13 +1721,13 @@ function renderChainDetail(pos){
   var net=s.isClosed?s.finalPnL:s.unrealizedNet;
 
   var acts='<div style="display:flex;gap:7px;flex-wrap:wrap">'+
-    (!s.isClosed?'<button class="btn btn-sm btn-pur" onclick="openM(\'m-chain-event\')">+ Log roll / adjustment</button> <button class="btn btn-sm btn-r" onclick="openCloseChain()">Close position</button>':'<button class="btn btn-sm btn-g" onclick="reopenChain()">Reopen</button>')+' <button class="btn btn-sm" onclick="openEditOpen()">Edit</button>'+
+    (!s.isClosed?'<button class="btn btn-sm btn-pur" onclick="openM(\'m-chain-event\')">+ Log roll / adjustment</button><button class="btn btn-sm btn-r" onclick="openCloseChain()">Close position</button>':'<button class="btn btn-sm btn-g" onclick="reopenChain()">Reopen</button>')+
     '<button class="btn btn-sm btn-r" data-posid="'+pos.id+'" onclick="delPos(this.dataset.posid)">Delete</button>'+
   '</div>';
   G('det-actions').innerHTML=acts;
 
   var h='';
-  h+='<div style="font-size:21px;font-weight:800;margin-bottom:4px">'+pos.ticker+' <span class="pill p-chain">'+pos.strategy+'</span>';
+  h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><div style="font-size:21px;font-weight:800">'+pos.ticker+' <span class="pill p-chain">'+pos.strategy+'</span></div><button class="btn btn-sm" onclick="openEditOpen()">Edit info</button></div>';
   if(s.isFree) h+=' <span class="pill p-free">FREE TRADE</span>';
   if(s.isClosed) h+=' <span class="pill p-closed">Closed</span>';
   h+='</div><div style="font-size:13px;color:var(--txt2);margin-bottom:14px">Opened '+pos.openDate+'</div>';
@@ -2255,7 +2265,7 @@ function saveUpdMark(){
 
 function delLot(lid){
   var pos=getP(activeId);if(!pos||!confirm('Remove this lot?'))return;
-  pos.lots=pos.lots.filter(function(l){return l.id!==lid;});
+  pos.lots=pos.lots.filter(function(l){return String(l.id)!==String(lid);});
   save();renderDetail();
 }
 
@@ -2492,6 +2502,7 @@ var activeLegIdx = null;
 
 function openRollLeg(idx){
   var pos=getP(activeId);if(!pos||!pos.openLegs)return;
+  idx=parseInt(idx)||0;
   var leg=pos.openLegs[idx];if(!leg)return;
   activeLegIdx=idx;
   // Show current leg details
@@ -2586,6 +2597,7 @@ function saveRollLeg(){
 
 function openCloseLeg(idx){
   var pos=getP(activeId);if(!pos||!pos.openLegs)return;
+  idx=parseInt(idx)||0;
   var leg=pos.openLegs[idx];if(!leg)return;
   activeLegIdx=idx;
   var legDesc=leg.action+' '+leg.optType+' $'+parseFloat(leg.strike).toFixed(2)+' exp '+leg.expiry+' x'+leg.qty;
@@ -2663,7 +2675,7 @@ function deleteHistEvent(evKey){
 function deleteHistPosition(posId){
   if(!confirm('Delete this entire position and all its history?')) return;
   // Remove from positions array
-  positions=positions.filter(function(p){return p.id!==posId;});
+  positions=positions.filter(function(p){return String(p.id)!==String(posId);});
   // Also clear any deleted event keys for this position
   Object.keys(deletedEvents).forEach(function(k){
     if(k.indexOf(posId)>=0) delete deletedEvents[k];
@@ -2714,6 +2726,7 @@ function saveEditOpen(){
 // ---- EDIT OPENING LEG (chain) ----
 function openEditLeg(idx){
   var pos=getP(activeId);if(!pos||!pos.openLegs)return;
+  idx=parseInt(idx)||0;
   var leg=pos.openLegs[idx];if(!leg)return;
   editLegIdx=idx;
   var asel=G('el-action');for(var i=0;i<asel.options.length;i++){if(asel.options[i].value===leg.action){asel.selectedIndex=i;break;}}
@@ -2727,6 +2740,7 @@ function openEditLeg(idx){
 }
 function saveEditLeg(){
   var pos=getP(activeId);if(!pos||editLegIdx===null)return;
+  editLegIdx=parseInt(editLegIdx)||0;
   var strike=parseFloat(G('el-strike').value);
   var price=parseFloat(G('el-price').value);
   var exp=G('el-expiry').value;
@@ -2743,6 +2757,7 @@ function saveEditLeg(){
 function deleteLegEdit(){
   var pos=getP(activeId);if(!pos||editLegIdx===null)return;
   if(!confirm('Delete this leg?'))return;
+  editLegIdx=parseInt(editLegIdx)||0;
   pos.openLegs.splice(editLegIdx,1);
   save();closeM('m-edit-leg');renderDetail();
 }
@@ -2750,7 +2765,7 @@ function deleteLegEdit(){
 // ---- EDIT ROLL EVENT ----
 function openEditRoll(evId){
   var pos=getP(activeId);if(!pos)return;
-  var ev=(pos.events||[]).find(function(e){return e.id===evId;});if(!ev)return;
+  var ev=(pos.events||[]).find(function(e){return String(e.id)===String(evId);});if(!ev)return;
   editEventId=evId;editModalActive='m-edit-roll';
   G('er-summary').textContent=ev.detail||'Roll event';
   // debits = btc cost (per 100 shares), credits = new premium (per 100 shares)
@@ -2777,7 +2792,7 @@ function saveEditRoll(){
 // ---- EDIT ADJUSTMENT EVENT ----
 function openEditAdj(evId){
   var pos=getP(activeId);if(!pos)return;
-  var ev=(pos.events||[]).find(function(e){return e.id===evId;});if(!ev)return;
+  var ev=(pos.events||[]).find(function(e){return String(e.id)===String(evId);});if(!ev)return;
   editEventId=evId;editModalActive='m-edit-adj';
   G('ea-summary').textContent=ev.detail||'Adjustment';
   G('ea-credits').value=ev.credits||0;
@@ -2802,7 +2817,7 @@ function saveEditAdj(){
 // ---- EDIT CLOSE EVENT ----
 function openEditClose(evId){
   var pos=getP(activeId);if(!pos)return;
-  var ev=(pos.events||[]).find(function(e){return e.id===evId;});if(!ev)return;
+  var ev=(pos.events||[]).find(function(e){return String(e.id)===String(evId);});if(!ev)return;
   editEventId=evId;editModalActive='m-edit-close';
   G('ec-recv').value=ev.credits||0;
   G('ec-paid').value=ev.debits||0;
@@ -2829,16 +2844,26 @@ function deleteEvent(){
   if(!confirm('Delete this event?'))return;
   var ev=(pos.events||[]).find(function(e){return e.id===editEventId;});
   if(ev&&(ev.eventType==='close'||ev.closed)){pos.closed=false;}
-  pos.events=(pos.events||[]).filter(function(e){return e.id!==editEventId;});
+  pos.events=(pos.events||[]).filter(function(e){return String(e.id)!==String(editEventId);});
   save();
   if(editModalActive)closeM(editModalActive);
   renderDetail();renderHome();
 }
 
+
+function updateCallEditFields(){
+  var sel=G('ecc-status');if(!sel)return;
+  var status=sel.value;
+  var btcRow=G('ecc-btc-row');
+  if(btcRow){
+    btcRow.style.display=(status==='btc'||status==='rolled')?'flex':'none';
+  }
+}
+
 // ---- EDIT CC CALL ----
 function openEditCall(callId){
   var pos=getP(activeId);if(!pos)return;
-  var c=(pos.calls||[]).find(function(x){return x.id===callId;});if(!c)return;
+  var c=(pos.calls||[]).find(function(x){return String(x.id)===String(callId);});if(!c)return;
   editCallId=callId;
   G('ecc-strike').value=c.strike||'';
   G('ecc-expiry').value=c.expiry||'';
@@ -2847,12 +2872,17 @@ function openEditCall(callId){
   G('ecc-datesold').value=c.dateSold||'';
   G('ecc-btc').value=c.btcPrice||'';
   G('ecc-closedate').value=c.closeDate||'';
+  // Set status dropdown
+  var sel=G('ecc-status');
+  if(sel){for(var i=0;i<sel.options.length;i++){if(sel.options[i].value===c.status){sel.selectedIndex=i;break;}}}
+  // Show/hide btc fields based on status
+  updateCallEditFields();
   G('ecc-err').textContent='';
   G('m-edit-call').classList.add('on');
 }
 function saveEditCall(){
   var pos=getP(activeId);if(!pos)return;
-  var c=(pos.calls||[]).find(function(x){return x.id===editCallId;});if(!c)return;
+  var c=(pos.calls||[]).find(function(x){return String(x.id)===String(editCallId);});if(!c)return;
   var strike=parseFloat(G('ecc-strike').value);
   var prem=parseFloat(G('ecc-prem').value);
   if(!strike||!prem){G('ecc-err').textContent='Enter strike and premium.';return;}
@@ -2861,16 +2891,19 @@ function saveEditCall(){
   c.qty=parseFloat(G('ecc-qty').value)||1;
   c.premPerShare=prem;
   c.dateSold=G('ecc-datesold').value;
+  var newStatus=G('ecc-status')?G('ecc-status').value:c.status;
+  c.status=newStatus;
   var btc=parseFloat(G('ecc-btc').value)||0;
-  if(btc>0){c.btcPrice=btc;}
+  c.btcPrice=(newStatus==='btc'||newStatus==='rolled')&&btc>0?btc:null;
   var cd=G('ecc-closedate').value;
-  if(cd){c.closeDate=cd;}
+  c.closeDate=(newStatus!=='open'&&cd)?cd:c.closeDate;
+  if(newStatus==='open'){c.btcPrice=null;c.closeDate=null;}
   save();closeM('m-edit-call');renderDetail();
 }
 function deleteCall(){
   var pos=getP(activeId);if(!pos)return;
   if(!confirm('Delete this call?'))return;
-  pos.calls=(pos.calls||[]).filter(function(c){return c.id!==editCallId;});
+  pos.calls=(pos.calls||[]).filter(function(c){return String(c.id)!==String(editCallId);});
   save();closeM('m-edit-call');renderDetail();
 }
 
@@ -2887,7 +2920,7 @@ function openEditLot(lotId){
 }
 function saveEditLot(){
   var pos=getP(activeId);if(!pos)return;
-  var lot=(pos.lots||[]).find(function(l){return l.id===editLotId;});if(!lot)return;
+  var lot=(pos.lots||[]).find(function(l){return String(l.id)===String(editLotId);});if(!lot)return;
   var sh=parseFloat(G('elot-shares').value);
   var cost=parseFloat(G('elot-cost').value);
   if(!sh||!cost){G('elot-err').textContent='Enter shares and cost.';return;}
@@ -3371,7 +3404,7 @@ function reopenChain(){
    ============================================================ */
 function delPos(pid){
   if(!confirm('Delete this position and all its data?'))return;
-  positions=positions.filter(function(p){return p.id!==pid;});
+  positions=positions.filter(function(p){return String(p.id)!==String(pid);});
   save();showV('v-home');
 }
 
