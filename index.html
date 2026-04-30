@@ -1501,7 +1501,7 @@ function posCard(pos){
 function ccCard(pos){
   var s=ccStats(pos);
   var hasOpen=!!s.openCall;
-  return '<div class="pos-card" onclick="openDetail('+pos.id+')">'+
+  return '<div class="pos-card" data-posid="'+pos.id+'" onclick="openDetail(this.dataset.posid)">'+
     '<div class="pos-hdr">'+
       '<div>'+
         '<div class="pos-ticker">'+pos.ticker+' <span class="pill p-cc">Covered call</span>'+(hasOpen?'<span class="pill p-live">Live call</span>':'')+'</div>'+
@@ -1519,7 +1519,7 @@ function ccCard(pos){
 function chainCard(pos){
   var s=chainStats(pos);
   var net=s.isClosed?s.finalPnL:s.unrealizedNet;
-  return '<div class="pos-card" onclick="openDetail('+pos.id+')">'+
+  return '<div class="pos-card" data-posid="'+pos.id+'" onclick="openDetail(this.dataset.posid)">'+
     '<div class="pos-hdr">'+
       '<div>'+
         '<div class="pos-ticker">'+pos.ticker+' <span class="pill p-chain">'+pos.strategy+'</span>'+
@@ -1567,7 +1567,7 @@ function renderCCDetail(pos){
     (s.totalShares>0?'<button class="btn btn-sm btn-r" onclick="openSellShares()">Sell shares</button>':'')+
     (s.openCall?'':'<button class="btn btn-sm btn-g" onclick="openM(\'m-log-call\')">+ Log call</button>')+
     '<button class="btn btn-sm" onclick="openEditOpen()">Edit</button>'+
-    '<button class="btn btn-sm btn-r" onclick="delPos('+pos.id+')">Delete</button>'+
+    '<button class="btn btn-sm btn-r" data-posid="'+pos.id+'" onclick="delPos(this.dataset.posid)">Delete</button>'+
   '</div>';
   G('det-actions').innerHTML=acts;
 
@@ -1712,7 +1712,7 @@ function renderChainDetail(pos){
 
   var acts='<div style="display:flex;gap:7px;flex-wrap:wrap">'+
     (!s.isClosed?'<button class="btn btn-sm btn-pur" onclick="openM(\'m-chain-event\')">+ Log roll / adjustment</button> <button class="btn btn-sm btn-r" onclick="openCloseChain()">Close position</button>':'<button class="btn btn-sm btn-g" onclick="reopenChain()">Reopen</button>')+' <button class="btn btn-sm" onclick="openEditOpen()">Edit</button>'+
-    '<button class="btn btn-sm btn-r" onclick="delPos('+pos.id+')">Delete</button>'+
+    '<button class="btn btn-sm btn-r" data-posid="'+pos.id+'" onclick="delPos(this.dataset.posid)">Delete</button>'+
   '</div>';
   G('det-actions').innerHTML=acts;
 
@@ -1942,7 +1942,7 @@ function renderHistory(){
       filt.forEach(function(ev){
         var row=document.createElement('div');
         row.style.cssText='padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer';
-        row.onclick=function(){openDetail(ev.posId);};
+        row.setAttribute('data-posid',ev.posId);row.onclick=function(){openDetail(this.dataset.posid);};
         row.onmouseover=function(){this.style.background='var(--bg2)';};
         row.onmouseout=function(){this.style.background='';};
         var pos=(ev.pnl||0)>=0;
@@ -1996,11 +1996,11 @@ function renderHistory(){
         var c2=document.createElement('div');c2.className='card';c2.style.cssText='margin-bottom:10px;padding:0;overflow:hidden';
         var h2=document.createElement('div');
         h2.style.cssText='padding:11px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;background:var(--bg2)';
-        h2.onclick=function(){openDetail(p.posId);};
+        h2.setAttribute('data-posid',p.posId);h2.onclick=function(){openDetail(this.dataset.posid);};
         var pp=getP(p.posId);
         var strat=pp?(pp.type==='cc'?((pp.calls&&pp.calls.length)?'Covered call':'Shares'):pp.strategy):'Position';
         h2.innerHTML=
-          '<div style="cursor:pointer" onclick="openDetail(p.posId)">'+
+          '<div style="cursor:pointer" data-posid="'+p.posId+'" onclick="openDetail(this.dataset.posid)">'+
             '<div style="font-weight:800;font-size:15px">'+ p.ticker+' <span class="pill p-chain" style="font-size:10px;padding:1px 6px">'+ strat+'</span></div>'+
             '<div style="font-size:11px;color:var(--txt2);margin-top:2px">'+ p.events.length+' event'+(p.events.length!==1?'s':'')+ '</div>'+
           '</div>'+
@@ -2988,7 +2988,7 @@ function renderHistory(){
     var strategy=d.strategy||( pos.type==='cc'?'Covered call':pos.strategy);
     var row=document.createElement('div');
     row.style.cssText='display:grid;grid-template-columns:90px 55px 1fr 100px 60px;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer;align-items:center';
-    row.onclick=function(){openDetail(pos.id);};
+    row.setAttribute('data-posid',pos.id);row.onclick=function(){openDetail(this.dataset.posid);};
     row.onmouseover=function(){this.style.background='var(--bg2)';};
     row.onmouseout=function(){this.style.background='';};
     var pill=d.closedNet>=0?'<span class="pill p-win">Win</span>':'<span class="pill p-loss">Loss</span>';
