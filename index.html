@@ -462,6 +462,11 @@ body.force-light{
 <div id="m-new-ch" class="overlay" onclick="omClick(event,'m-new-ch')">
   <div class="modal">
     <div class="modal-title">New option position</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;background:var(--bg2);border-radius:var(--rs);padding:4px">
+      <button id="nch-single-btn" class="btn btn-p btn-sm" style="flex:1" onclick="setPositionMode('single')">Single leg</button>
+      <button id="nch-chain-btn" class="btn btn-sm" style="flex:1" onclick="setPositionMode('chain')">Chain / Multi-leg</button>
+    </div>
+    <div id="nch-mode-hint" style="font-size:12px;color:var(--txt2);margin-bottom:10px">Single leg — one option, open and close it. Auto-converts to chain if you add a second leg.</div>
     <div class="form-row">
       <div class="fld w85"><label>Ticker</label><input id="nch-tk" placeholder="SPY" style="text-transform:uppercase"></div>
       <div class="fld w135"><label>Strategy type</label>
@@ -689,14 +694,39 @@ body.force-light{
 <div id="m-close-chain" class="overlay" onclick="omClick(event,'m-close-chain')">
   <div class="modal">
     <div class="modal-title">Close position</div>
-    <div class="info">Enter what you received and/or paid to close. The app will calculate your final P&L.</div>
-    <div class="form-row">
-      <div class="fld"><label>Received to close ($)</label><input id="clch-recv" type="number" step="0.01" placeholder="0.00" oninput="previewCloseChain()"><div class="hint">Money that came IN (0 if nothing)</div></div>
-      <div class="fld"><label>Paid to close ($)</label><input id="clch-paid" type="number" step="0.01" placeholder="0.00" oninput="previewCloseChain()"><div class="hint">Money that went OUT (0 if nothing)</div></div>
+    <div class="mtabs">
+      <button class="mtab on" onclick="closeChainTab('close')">Close / Expired</button>
+      <button class="mtab" onclick="closeChainTab('assigned')">Assigned</button>
     </div>
-    <div class="form-row">
+
+    <!-- CLOSE TAB -->
+    <div id="cch-close" class="mpane on">
+      <div class="info">Enter what you received and/or paid to close.</div>
+      <div class="form-row">
+        <div class="fld"><label>Received to close ($)</label><input id="clch-recv" type="number" step="0.01" placeholder="0.00" oninput="previewCloseChain()"><div class="hint">Money IN (0 if expired worthless)</div></div>
+        <div class="fld"><label>Paid to close ($)</label><input id="clch-paid" type="number" step="0.01" placeholder="0.00" oninput="previewCloseChain()"><div class="hint">Money OUT (0 if received)</div></div>
+      </div>
+    </div>
+
+    <!-- ASSIGNED TAB -->
+    <div id="cch-assigned" class="mpane">
+      <div class="info">You were assigned shares. App calculates your true cost basis after all credits collected.</div>
+      <div class="form-row">
+        <div class="fld w100"><label>Strike ($)</label><input id="clch-strike" type="number" step="0.5" placeholder="50.00" oninput="previewAssignment()"></div>
+        <div class="fld w85"><label>Contracts</label><input id="clch-contracts" type="number" min="1" value="1" oninput="previewAssignment()"></div>
+      </div>
+      <div id="clch-assign-preview" style="display:none;background:var(--bg2);border-radius:var(--rs);padding:9px 12px;margin-bottom:8px;font-size:13px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Strike × shares</span><span id="clch-ap-cost" class="red"></span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Credits collected</span><span id="clch-ap-cred" class="green"></span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px;border-top:1px solid var(--border);padding-top:5px;font-weight:700"><span>True cost basis</span><span id="clch-ap-basis"></span></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--txt2)"><span>Per share</span><span id="clch-ap-per"></span></div>
+      </div>
+      <div class="info" style="margin-top:4px">After saving you can convert this position to a Covered Call to continue selling calls against these shares.</div>
+    </div>
+
+    <div class="form-row" style="margin-top:8px">
       <div class="fld w115"><label>Date</label><input id="clch-date" type="date"></div>
-      <div class="fld"><label>Note (optional)</label><input id="clch-note" placeholder="e.g. expired worthless, pinned at strike"></div>
+      <div class="fld"><label>Note (optional)</label><input id="clch-note" placeholder="e.g. expired worthless, assigned at strike"></div>
     </div>
     <div id="clch-preview" style="display:none;background:var(--bg2);border-radius:var(--rs);padding:9px 12px;margin-bottom:6px;font-size:13px">
       <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Received</span><span class="green" id="clch-prev-recv"></span></div>
@@ -1440,6 +1470,26 @@ function calcAllSettledEvents(){
   return all.sort(function(a,b){return(b.date||'').localeCompare(a.date||'');});
 }
 
+
+/* ============================================================
+   POSITION MODE - single vs chain
+   ============================================================ */
+var positionMode = 'single';
+
+function setPositionMode(mode){
+  positionMode = mode;
+  var sb = G('nch-single-btn');
+  var cb = G('nch-chain-btn');
+  var hint = G('nch-mode-hint');
+  if(sb) sb.className = 'btn btn-sm' + (mode==='single'?' btn-p':'');
+  if(cb) cb.className = 'btn btn-sm' + (mode==='chain'?' btn-p':'');
+  if(hint){
+    hint.textContent = mode==='single'
+      ? 'Single leg — one option, open and close it. Auto-converts to chain if you add a second leg.'
+      : 'Chain / Multi-leg — butterfly, condor, diagonal, or any position with multiple legs or rolls.';
+  }
+}
+
 /* ============================================================
    VIEWS
    ============================================================ */
@@ -1722,6 +1772,7 @@ function renderChainDetail(pos){
 
   var acts='<div style="display:flex;gap:7px;flex-wrap:wrap">'+
     (!s.isClosed?'<button class="btn btn-sm btn-pur" onclick="openM(\'m-chain-event\')">+ Log roll / adjustment</button><button class="btn btn-sm btn-r" onclick="openCloseChain()">Close position</button>':'<button class="btn btn-sm btn-g" onclick="reopenChain()">Reopen</button>')+
+    (!pos.isChain&&!s.isClosed?'<button class="btn btn-sm" onclick="revertToSingle()">Single only</button>':'')+
     '<button class="btn btn-sm btn-r" data-posid="'+pos.id+'" onclick="delPos(this.dataset.posid)">Delete</button>'+
   '</div>';
   G('det-actions').innerHTML=acts;
@@ -1804,7 +1855,7 @@ function renderChainDetail(pos){
           (ev.detail?'<div class="tl-detail">'+ev.detail+'</div>':'')+
           '<div class="tl-net">'+fp(ev.netCash||0)+'</div>'+
           '<div class="tl-running">Running net: '+fp(running)+'</div>'+
-        '<div style="margin-top:6px">'+(ev.eventType==='close'||ev.closed?'<button class="btn btn-sm" style="font-size:11px;padding:3px 8px" onclick="openEditClose('+ev.id+')">Edit close</button>':ev.eventType==='roll'?'<button class="btn btn-sm" style="font-size:11px;padding:3px 8px" onclick="openEditRoll('+ev.id+')">Edit roll</button>':'<button class="btn btn-sm" style="font-size:11px;padding:3px 8px" onclick="openEditAdj('+ev.id+')">Edit adj</button>')+'</div>'+
+        '<div style="margin-top:6px"><button class="btn btn-sm" style="font-size:11px;padding:3px 8px" data-evid="'+ev.id+'" data-evtype="'+ev.eventType+'" data-evclosed="'+(ev.closed||ev.eventType==='close'?'1':'0')+'" onclick="tledit(this)">Edit</button></div>'+
         '</div>'+
       '</div>';
     });
@@ -2060,6 +2111,8 @@ function openNewChain(){
   G('nch-tk').value='';G('nch-date').value=today();G('nch-err').textContent='';
   nchLegs=[];G('nch-legs').innerHTML='';G('nch-cost-preview').style.display='none';
   populateStratSelect('nch-str');
+  positionMode='single';
+  setPositionMode('single');
   G('m-new-ch').classList.add('on');
   addNchLeg();
 }
@@ -2089,6 +2142,11 @@ function ceTab(t){
    ============================================================ */
 var nchLegCtr=0;
 function addNchLeg(){
+  // Auto-convert to chain when 2nd leg added
+  var existingLegs=document.querySelectorAll('#nch-legs > div').length;
+  if(existingLegs>=1 && positionMode==='single'){
+    setPositionMode('chain');
+  }
   nchLegCtr++;var id='nchl-'+nchLegCtr;
   var div=document.createElement('div');
   div.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;padding:9px 10px;background:var(--bg2);border-radius:6px;border:1px solid var(--border)';
@@ -2153,7 +2211,10 @@ function saveNewChain(){
     openLegs.push({action:r.querySelector('[name=action]').value,optType:r.querySelector('[name=optType]').value,strike:parseFloat(stk),expiry:exp,qty:parseFloat(r.querySelector('[name=qty]').value)||1,price:parseFloat(p)});
   });
   if(!ok)return;
-  var pos={id:uid(),type:'chain',ticker:tk,name:tk+' '+str,strategy:str,category:'',openDate:date,openLegs:openLegs,events:[],closed:false};
+  var legCount=openLegs.length;
+  if(legCount===1 && positionMode==='single') positionMode='single';
+  else positionMode='chain';
+  var pos={id:uid(),type:'chain',ticker:tk,name:tk+' '+str,strategy:str,category:'',openDate:date,openLegs:openLegs,events:[],closed:false,isChain:positionMode==='chain'};
   positions.push(pos);save();closeM('m-new-ch');renderHome();
 }
 
@@ -2763,6 +2824,16 @@ function deleteLegEdit(){
 }
 
 // ---- EDIT ROLL EVENT ----
+
+function tledit(btn){
+  var evid=btn.getAttribute('data-evid');
+  var evtype=btn.getAttribute('data-evtype');
+  var evclosed=btn.getAttribute('data-evclosed')==='1';
+  if(evclosed||evtype==='close') openEditClose(evid);
+  else if(evtype==='roll') openEditRoll(evid);
+  else openEditAdj(evid);
+}
+
 function openEditRoll(evId){
   var pos=getP(activeId);if(!pos)return;
   var ev=(pos.events||[]).find(function(e){return String(e.id)===String(evId);});if(!ev)return;
@@ -3296,6 +3367,47 @@ function saveSellShares(){
   }
 }
 
+
+function revertToSingle(){
+  var pos=getP(activeId);if(!pos)return;
+  if(pos.openLegs&&pos.openLegs.length>1){
+    alert('Cannot revert to single — position has multiple legs. Remove extra legs first.');return;
+  }
+  pos.isChain=false;
+  save();renderDetail();
+}
+
+
+var closeChainMode = 'close';
+
+function closeChainTab(t){
+  closeChainMode = t;
+  ['close','assigned'].forEach(function(m,i){
+    G('cch-'+m).classList.toggle('on', m===t);
+    document.querySelectorAll('#m-close-chain .mtab')[i].classList.toggle('on', m===t);
+  });
+  G('clch-preview').style.display='none';
+  G('clch-assign-preview').style.display='none';
+}
+
+function previewAssignment(){
+  var pos=getP(activeId);if(!pos)return;
+  var s=chainStats(pos);
+  var strike=parseFloat(G('clch-strike').value)||0;
+  var contracts=parseFloat(G('clch-contracts').value)||1;
+  var shares=contracts*100;
+  if(!strike){G('clch-assign-preview').style.display='none';return;}
+  var totalCost=strike*shares;
+  var creditsCollected=s.runningNet; // all credits minus debits so far
+  var trueCostTotal=totalCost-creditsCollected;
+  var perShare=trueCostTotal/shares;
+  G('clch-ap-cost').textContent='-$'+totalCost.toFixed(2);
+  G('clch-ap-cred').textContent='+$'+Math.max(0,creditsCollected).toFixed(2);
+  G('clch-ap-basis').innerHTML=fp(trueCostTotal);
+  G('clch-ap-per').textContent='$'+perShare.toFixed(2)+'/share';
+  G('clch-assign-preview').style.display='block';
+}
+
 /* ============================================================
    CLOSE CHAIN POSITION
    ============================================================ */
@@ -3306,6 +3418,8 @@ function openCloseChain(){
   G('clch-note').value='';
   G('clch-preview').style.display='none';
   G('clch-err').textContent='';
+  closeChainMode='close';
+  closeChainTab('close');
   G('m-close-chain').classList.add('on');
 }
 function previewCloseChain(){
@@ -3319,26 +3433,77 @@ function previewCloseChain(){
 }
 function saveCloseChain(){
   var pos=getP(activeId);if(!pos)return;
-  var recv=parseFloat(G('clch-recv').value)||0;
-  var paid=parseFloat(G('clch-paid').value)||0;
   var date=G('clch-date').value;
   var note=G('clch-note').value;
   if(!date){G('clch-err').textContent='Enter a date.';return;}
-  var net=recv-paid;
-  var ev={id:uid(),date:date,note:note||'Position closed',eventType:'close',
-    netCash:net,credits:recv,debits:paid,commissions:0,
-    detail:'Closed — received $'+recv.toFixed(2)+', paid $'+paid.toFixed(2),
-    closed:true};
-  if(!pos.events) pos.events=[];
-  pos.events.push(ev);
-  pos.closed=true;
+
+  if(closeChainMode==='assigned'){
+    var strike=parseFloat(G('clch-strike').value)||0;
+    var contracts=parseFloat(G('clch-contracts').value)||1;
+    if(!strike){G('clch-err').textContent='Enter assignment strike price.';return;}
+    var shares=contracts*100;
+    var s=chainStats(pos);
+    var creditsCollected=s.runningNet;
+    var trueCostBasis=(strike*shares-creditsCollected)/shares;
+    // Log assignment as close event
+    var ev={id:uid(),date:date,note:note||'Assigned at $'+strike,eventType:'close',
+      netCash:creditsCollected, // options P&L = all credits collected
+      credits:Math.max(0,creditsCollected),debits:0,commissions:0,
+      detail:'Assigned at $'+strike+' — true cost basis $'+trueCostBasis.toFixed(2)+'/share',
+      closed:true,
+      assignment:{strike:strike,shares:shares,trueCostBasis:trueCostBasis,contracts:contracts}
+    };
+    if(!pos.events) pos.events=[];
+    pos.events.push(ev);
+    pos.closed=true;
+    pos.assignment={strike:strike,shares:shares,trueCostBasis:trueCostBasis};
+    save();
+    closeM('m-close-chain');
+    // Ask if they want to convert to CC
+    setTimeout(function(){
+      if(confirm('Convert to Covered Call? A new CC position will be created with your true cost basis of $'+trueCostBasis.toFixed(2)+'/share.')){
+        convertAssignedToCC(pos.id,strike,shares,trueCostBasis,date);
+      } else {
+        showV('v-scorecard');
+        if(creditsCollected>0) triggerCelebration(creditsCollected);
+      }
+    },300);
+  } else {
+    var recv=parseFloat(G('clch-recv').value)||0;
+    var paid=parseFloat(G('clch-paid').value)||0;
+    var net=recv-paid;
+    var ev2={id:uid(),date:date,note:note||'Position closed',eventType:'close',
+      netCash:net,credits:recv,debits:paid,commissions:0,
+      detail:'Closed — received $'+recv.toFixed(2)+', paid $'+paid.toFixed(2),
+      closed:true};
+    if(!pos.events) pos.events=[];
+    pos.events.push(ev2);
+    pos.closed=true;
+    save();
+    closeM('m-close-chain');
+    var finalS=chainStats(pos);
+    var finalPnL=finalS.finalPnL||0;
+    showV('v-scorecard');
+    if(finalPnL>0) setTimeout(function(){triggerCelebration(finalPnL);},400);
+  }
+}
+
+function convertAssignedToCC(oldPosId, strike, shares, costBasis, date){
+  var oldPos=getP(oldPosId);
+  if(!oldPos)return;
+  // Create new CC position with true cost basis
+  var newPos={
+    id:uid(),type:'cc',ticker:oldPos.ticker,name:'',category:'',
+    currentPrice:null,currentPriceDate:null,
+    lots:[{id:uid(),shares:shares,costPerShare:costBasis,date:date,assignedCallId:null}],
+    calls:[],shareSales:[],
+    convertedFromChain:oldPosId
+  };
+  positions.push(newPos);
   save();
-  closeM('m-close-chain');
-  // Calculate true final P&L for celebration
-  var finalS=chainStats(pos);
-  var finalPnL=finalS.finalPnL||0;
-  showV('v-scorecard');
-  if(finalPnL>0) setTimeout(function(){triggerCelebration(finalPnL);},400);
+  showV('v-home');
+  // Open the new CC position
+  var _newId=String(newPos.id);setTimeout(function(){openDetail(_newId);},300);
 }
 /* ============================================================
    CHAIN ACTIONS
