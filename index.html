@@ -224,6 +224,9 @@ body.force-light{
   --yellow:#b45309;--yellow-bg:#fef3c7;
   --teal:#0f766e;--teal-bg:#e6f7f5;
 }
+@media(max-width:500px){
+  .form-row{flex-direction:column;}
+}
 </style>
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -730,19 +733,32 @@ body.force-light{
 <div id="m-close-chain" class="overlay" onclick="omClick(event,'m-close-chain')">
   <div class="modal">
     <div class="modal-title">Close position</div>
-    <div class="info">Enter what you received and/or paid to close. The app will calculate your final P&L.</div>
-    <div class="form-row">
-      <div class="fld"><label>Received to close (price/share)</label><input id="clch-recv" type="number" step="0.01" placeholder="0.00" oninput="previewCloseChain()"><div class="hint">Enter option price · e.g. 3.00 = $300 received</div></div>
-      <div class="fld"><label>Paid to close (price/share)</label><input id="clch-paid" type="number" step="0.01" placeholder="0.00" oninput="previewCloseChain()"><div class="hint">Enter option price · e.g. 2.00 = $200 paid</div></div>
+    <div class="mtabs">
+      <button class="mtab on" onclick="clchTab('exp')">Expired worthless</button>
+      <button class="mtab" onclick="clchTab('sell')">Sell to close</button>
+      <button class="mtab" onclick="clchTab('buy')">Buy to close</button>
     </div>
-    <div class="form-row">
+    <div id="clch-pane-exp" class="mpane on">
+      <div class="succ">Position expired with no remaining value — P&L is based on all credits and debits already logged.</div>
+    </div>
+    <div id="clch-pane-sell" class="mpane">
+      <div class="info">You sold your long option to close. Enter the sale price per share.</div>
+      <div class="form-row">
+        <div class="fld"><label>Sale price ($/share)</label><input id="clch-sell-p" type="number" step="0.01" placeholder="0.00" oninput="previewCloseChain()"><div class="hint">e.g. 3.00 = $300 received per contract</div></div>
+      </div>
+    </div>
+    <div id="clch-pane-buy" class="mpane">
+      <div class="info">You bought back your short option to close. Enter the buyback price per share.</div>
+      <div class="form-row">
+        <div class="fld"><label>Buyback price ($/share)</label><input id="clch-buy-p" type="number" step="0.01" placeholder="0.00" oninput="previewCloseChain()"><div class="hint">e.g. 2.00 = $200 paid per contract</div></div>
+      </div>
+    </div>
+    <div class="form-row" style="margin-top:8px">
       <div class="fld w115"><label>Date</label><input id="clch-date" type="date"></div>
       <div class="fld"><label>Note (optional)</label><input id="clch-note" placeholder="e.g. expired worthless, pinned at strike"></div>
     </div>
     <div id="clch-preview" style="display:none;background:var(--bg2);border-radius:var(--rs);padding:9px 12px;margin-bottom:6px;font-size:13px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Received</span><span class="green" id="clch-prev-recv"></span></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Paid</span><span class="red" id="clch-prev-paid"></span></div>
-      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:5px;margin-top:3px;font-weight:700"><span>Net this close</span><span id="clch-prev-net"></span></div>
+      <div style="display:flex;justify-content:space-between;font-weight:700"><span>Net this close</span><span id="clch-prev-net"></span></div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:8px">
       <button class="btn" onclick="closeM('m-close-chain')">Cancel</button>
@@ -1127,7 +1143,7 @@ var PKEY='ot_positions_v1', CKEY='ot_cfg_v1', STRATKEY='ot_strategies_v1', SOUND
 var DEF_CFG={pc:0.80,af:0,ef:0};
 var DEF_STRATEGIES=["Bear call spread", "Bear put spread", "Bull call spread", "Bull put spread", "Butterfly", "Broken wing butterfly", "Calendar spread", "Covered call (chain)", "Custom", "Diagonal spread", "Iron butterfly", "Iron condor", "Jade lizard", "Long call", "Long put", "PMCC", "Sell put (CSP)", "Strangle", "Straddle"];
 var positions=[], cfg=Object.assign({},DEF_CFG), strategies=DEF_STRATEGIES.slice(), celebSound='cha-ching', deletedEvents={};
-var activeId=null, nchLegs=[], ceMode='roll';
+var activeId=null, nchLegs=[], ceMode='roll', clchTabMode='exp';
 var pendingRS=null;
 
 function load(){
@@ -2123,6 +2139,17 @@ function ceTab(t){
     document.querySelectorAll('#m-chain-event .mtab')[i].classList.toggle('on',m===t);
   });
   G('ce-preview').style.display='none';
+}
+
+/* ---- CLOSE CHAIN TAB ---- */
+function clchTab(t){
+  clchTabMode=t;
+  ['exp','sell','buy'].forEach(function(m,i){
+    G('clch-pane-'+m).classList.toggle('on',m===t);
+    document.querySelectorAll('#m-close-chain .mtab')[i].classList.toggle('on',m===t);
+  });
+  G('clch-preview').style.display='none';
+  G('clch-err').textContent='';
 }
 
 /* ============================================================
@@ -3412,8 +3439,9 @@ function saveAddLeg(){
    CLOSE CHAIN POSITION
    ============================================================ */
 function openCloseChain(){
-  G('clch-recv').value='';
-  G('clch-paid').value='';
+  clchTab('exp');
+  G('clch-sell-p').value='';
+  G('clch-buy-p').value='';
   G('clch-date').value=today();
   G('clch-note').value='';
   G('clch-preview').style.display='none';
@@ -3421,34 +3449,32 @@ function openCloseChain(){
   G('m-close-chain').classList.add('on');
 }
 function previewCloseChain(){
-  var recv=parseFloat(G('clch-recv').value)||0;
-  var paid=parseFloat(G('clch-paid').value)||0;
-  var net=(recv-paid)*100;
-  G('clch-prev-recv').textContent=recv>0?'+$'+(recv*100).toFixed(2):'$0.00';
-  G('clch-prev-paid').textContent=paid>0?'-$'+(paid*100).toFixed(2):'$0.00';
+  var net=0;
+  if(clchTabMode==='sell') net=(parseFloat(G('clch-sell-p').value)||0)*100;
+  else if(clchTabMode==='buy') net=-(parseFloat(G('clch-buy-p').value)||0)*100;
   G('clch-prev-net').innerHTML=fp(net);
-  G('clch-preview').style.display='block';
+  G('clch-preview').style.display=clchTabMode!=='exp'?'block':'none';
 }
 function saveCloseChain(){
   var pos=getP(activeId);if(!pos)return;
-  var recvInput=parseFloat(G('clch-recv').value)||0;
-  var paidInput=parseFloat(G('clch-paid').value)||0;
-  var recv=recvInput*100;
-  var paid=paidInput*100;
+  var recv=0,paid=0;
+  if(clchTabMode==='sell') recv=(parseFloat(G('clch-sell-p').value)||0)*100;
+  else if(clchTabMode==='buy') paid=(parseFloat(G('clch-buy-p').value)||0)*100;
   var date=G('clch-date').value;
   var note=G('clch-note').value;
   if(!date){G('clch-err').textContent='Enter a date.';return;}
   var net=recv-paid;
-  var ev={id:uid(),date:date,note:note||'Position closed',eventType:'close',
+  var detail=clchTabMode==='exp'?'Expired worthless':
+    clchTabMode==='sell'?'Sold to close — received $'+recv.toFixed(2):
+    'Bought to close — paid $'+paid.toFixed(2);
+  var ev={id:uid(),date:date,note:note||detail,eventType:'close',
     netCash:net,credits:recv,debits:paid,commissions:0,
-    detail:'Closed — received $'+recv.toFixed(2)+', paid $'+paid.toFixed(2),
-    closed:true};
+    detail:detail,closed:true};
   if(!pos.events) pos.events=[];
   pos.events.push(ev);
   pos.closed=true;
   save();
   closeM('m-close-chain');
-  // Calculate true final P&L for celebration
   var finalS=chainStats(pos);
   var finalPnL=finalS.finalPnL||0;
   showV('v-scorecard');
