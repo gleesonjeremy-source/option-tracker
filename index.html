@@ -1023,11 +1023,27 @@ body.force-light{
       <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">Closing leg</div>
       <div id="cl-leg-display" style="color:var(--txt)"></div>
     </div>
-    <div class="form-row">
-      <div class="fld"><label>Received to close (price/share)</label><input id="cl-recv" type="number" step="0.01" placeholder="0.00" oninput="previewCloseLeg()"><div class="hint">Enter option price · e.g. 3.00 = $300 received</div></div>
-      <div class="fld"><label>Paid to close (price/share)</label><input id="cl-paid" type="number" step="0.01" placeholder="0.00" oninput="previewCloseLeg()"><div class="hint">Enter option price · e.g. 2.00 = $200 paid</div></div>
+    <div class="mtabs">
+      <button class="mtab on" onclick="clLegTab('exp')">Expired worthless</button>
+      <button class="mtab" onclick="clLegTab('sell')">Sell to close</button>
+      <button class="mtab" onclick="clLegTab('buy')">Buy to close</button>
     </div>
-    <div class="form-row">
+    <div id="cl-pane-exp" class="mpane on">
+      <div class="succ">This leg expired with no remaining value — no additional cash flow to record.</div>
+    </div>
+    <div id="cl-pane-sell" class="mpane">
+      <div class="info">You sold this long leg to close. Enter the sale price per share.</div>
+      <div class="form-row">
+        <div class="fld"><label>Sale price ($/share)</label><input id="cl-sell-p" type="number" step="0.01" placeholder="0.00" oninput="previewCloseLeg()"><div class="hint">e.g. 3.00 = $300 received per contract</div></div>
+      </div>
+    </div>
+    <div id="cl-pane-buy" class="mpane">
+      <div class="info">You bought back this short leg to close. Enter the buyback price per share.</div>
+      <div class="form-row">
+        <div class="fld"><label>Buyback price ($/share)</label><input id="cl-buy-p" type="number" step="0.01" placeholder="0.00" oninput="previewCloseLeg()"><div class="hint">e.g. 2.00 = $200 paid per contract</div></div>
+      </div>
+    </div>
+    <div class="form-row" style="margin-top:8px">
       <div class="fld w115"><label>Date</label><input id="cl-date" type="date"></div>
       <div class="fld"><label>Note (optional)</label><input id="cl-note2" placeholder="e.g. closed long for profit"></div>
     </div>
@@ -2141,6 +2157,18 @@ function ceTab(t){
   G('ce-preview').style.display='none';
 }
 
+/* ---- CLOSE LEG TAB ---- */
+var clLegTabMode='exp';
+function clLegTab(t){
+  clLegTabMode=t;
+  ['exp','sell','buy'].forEach(function(m,i){
+    G('cl-pane-'+m).classList.toggle('on',m===t);
+    document.querySelectorAll('#m-close-leg .mtab')[i].classList.toggle('on',m===t);
+  });
+  G('cl-preview').style.display='none';
+  G('cl-err2').textContent='';
+}
+
 /* ---- CLOSE CHAIN TAB ---- */
 function clchTab(t){
   clchTabMode=t;
@@ -2670,8 +2698,9 @@ function openCloseLeg(idx){
   activeLegIdx=idx;
   var legDesc=leg.action+' '+leg.optType+' $'+parseFloat(leg.strike).toFixed(2)+' exp '+leg.expiry+' x'+leg.qty;
   G('cl-leg-display').textContent=legDesc;
-  G('cl-recv').value='';
-  G('cl-paid').value='';
+  clLegTab('exp');
+  G('cl-sell-p').value='';
+  G('cl-buy-p').value='';
   G('cl-date').value=today();
   G('cl-note2').value='';
   G('cl-preview').style.display='none';
@@ -2680,25 +2709,27 @@ function openCloseLeg(idx){
 }
 
 function previewCloseLeg(){
-  var recv=parseFloat(G('cl-recv').value)||0;
-  var paid=parseFloat(G('cl-paid').value)||0;
-  var net=(recv-paid)*100;
+  var net=0;
+  if(clLegTabMode==='sell') net=(parseFloat(G('cl-sell-p').value)||0)*100;
+  else if(clLegTabMode==='buy') net=-(parseFloat(G('cl-buy-p').value)||0)*100;
   G('cl-prev-net').innerHTML=fp(net);
-  G('cl-preview').style.display='block';
+  G('cl-preview').style.display=clLegTabMode!=='exp'?'block':'none';
 }
 
 function saveCloseLeg(){
   var pos=getP(activeId);if(!pos||activeLegIdx===null)return;
   var leg=pos.openLegs[activeLegIdx];if(!leg)return;
-  var recvInput=parseFloat(G('cl-recv').value)||0;
-  var paidInput=parseFloat(G('cl-paid').value)||0;
-  var recv=recvInput*100;
-  var paid=paidInput*100;
+  var recv=0,paid=0;
+  if(clLegTabMode==='sell') recv=(parseFloat(G('cl-sell-p').value)||0)*100;
+  else if(clLegTabMode==='buy') paid=(parseFloat(G('cl-buy-p').value)||0)*100;
   var date=G('cl-date').value;
   var note=G('cl-note2').value;
   if(!date){G('cl-err2').textContent='Enter a date.';return;}
   var net=recv-paid;
-  var detail='Closed leg: '+leg.action+' '+leg.optType+' $'+parseFloat(leg.strike).toFixed(2)+' exp '+leg.expiry;
+  var legDesc=leg.action+' '+leg.optType+' $'+parseFloat(leg.strike).toFixed(2)+' exp '+leg.expiry;
+  var detail=clLegTabMode==='exp'?'Leg expired worthless: '+legDesc:
+    clLegTabMode==='sell'?'Sold to close: '+legDesc+' — received $'+recv.toFixed(2):
+    'Bought to close: '+legDesc+' — paid $'+paid.toFixed(2);
   var ev={
     id:uid(),date:date,note:note||detail,
     eventType:'adj',
