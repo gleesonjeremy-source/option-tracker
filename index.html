@@ -978,34 +978,27 @@ body.force-light{
 <div id="m-roll-leg" class="overlay" onclick="omClick(event,'m-roll-leg')">
   <div class="modal">
     <div class="modal-title">Roll leg</div>
-    <div style="background:var(--bg2);border-radius:var(--rs);padding:9px 12px;margin-bottom:12px;font-size:13px">
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">Current leg (closing)</div>
+    <div style="background:var(--bg2);border-radius:var(--rs);padding:7px 12px;margin-bottom:10px;font-size:13px">
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px">Closing</div>
       <div id="rl-old-leg-display" style="color:var(--txt)"></div>
     </div>
-    <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px">Close old leg</div>
     <div class="form-row">
-      <div class="fld"><label>Price to close ($/share)</label><input id="rl-close-price" type="number" step="0.01" placeholder="0.00" oninput="previewLegRoll()"></div>
-      <div class="fld w115"><label>Date</label><input id="rl-date" type="date"></div>
-    </div>
-    <div class="div-line"></div>
-    <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px">New leg</div>
-    <div class="form-row">
-      <div class="fld w70"><label>Action</label><select id="rl-new-action"><option>STO</option><option>BTO</option></select></div>
-      <div class="fld w70"><label>Type</label><select id="rl-new-type"><option>Call</option><option>Put</option></select></div>
-      <div class="fld w85"><label>Strike ($)</label><input id="rl-new-strike" type="number" step="0.5" oninput="previewLegRoll()"></div>
+      <div class="fld"><label id="rl-btc-label">BTC paid ($/sh)</label><input id="rl-close-price" type="number" step="0.01" placeholder="0.00" oninput="previewLegRoll()"></div>
+      <div class="fld"><label id="rl-new-label">New STO ($/sh)</label><input id="rl-new-price" type="number" step="0.01" placeholder="0.00" oninput="previewLegRoll()"></div>
     </div>
     <div class="form-row">
-      <div class="fld w115"><label>Expiry</label><input id="rl-new-expiry" type="date"></div>
-      <div class="fld w70"><label>Qty</label><input id="rl-new-qty" type="number" min="1" value="1" oninput="previewLegRoll()"></div>
-      <div class="fld w85"><label>Price ($/share)</label><input id="rl-new-price" type="number" step="0.01" oninput="previewLegRoll()"></div>
+      <div class="fld"><label>New strike ($)</label><input id="rl-new-strike" type="number" step="0.5"></div>
+      <div class="fld"><label>New expiry</label><input id="rl-new-expiry" type="date"></div>
+      <div class="fld w100"><label>Date</label><input id="rl-date" type="date"></div>
     </div>
     <div id="rl-preview" style="display:none;background:var(--bg2);border-radius:var(--rs);padding:9px 12px;margin-bottom:8px;font-size:13px">
-      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Close cost</span><span id="rl-prev-close"></span></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">New leg proceeds</span><span id="rl-prev-new"></span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu" id="rl-prev-close-lbl">BTC paid</span><span id="rl-prev-close"></span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu" id="rl-prev-new-lbl">New STO received</span><span id="rl-prev-new"></span></div>
       <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:5px;margin-top:3px;font-weight:700"><span>Net this roll</span><span id="rl-prev-net"></span></div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:12px"><span class="mu">Campaign total</span><span id="rl-prev-campaign"></span></div>
     </div>
     <div class="form-row">
-      <div class="fld"><label>Note (optional)</label><input id="rl-note" placeholder="e.g. rolled long down for credit"></div>
+      <div class="fld"><label>Note (optional)</label><input id="rl-note" placeholder="e.g. rolled up for credit"></div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
       <button class="btn" onclick="closeM('m-roll-leg')">Cancel</button>
@@ -2601,17 +2594,16 @@ function openRollLeg(idx){
   idx=parseInt(idx)||0;
   var leg=pos.openLegs[idx];if(!leg)return;
   activeLegIdx=idx;
-  // Show current leg details
   var legDesc=leg.action+' '+leg.optType+' $'+parseFloat(leg.strike).toFixed(2)+' exp '+leg.expiry+' x'+leg.qty;
   G('rl-old-leg-display').textContent=legDesc;
-  // Pre-fill new leg with same details
-  var asel=G('rl-new-action');
-  for(var i=0;i<asel.options.length;i++){if(asel.options[i].value===leg.action){asel.selectedIndex=i;break;}}
-  var tsel=G('rl-new-type');
-  for(var i=0;i<tsel.options.length;i++){if(tsel.options[i].value===leg.optType){tsel.selectedIndex=i;break;}}
+  // Set labels based on leg direction
+  var isSTO=leg.action==='STO';
+  G('rl-btc-label').textContent=isSTO?'BTC paid ($/sh)':'STC received ($/sh)';
+  G('rl-new-label').textContent=isSTO?'New STO ($/sh)':'New BTO ($/sh)';
+  G('rl-prev-close-lbl').textContent=isSTO?'BTC paid':'STC received';
+  G('rl-prev-new-lbl').textContent=isSTO?'New STO received':'New BTO cost';
   G('rl-new-strike').value=leg.strike||'';
   G('rl-new-expiry').value='';
-  G('rl-new-qty').value=leg.qty||1;
   G('rl-new-price').value='';
   G('rl-close-price').value='';
   G('rl-date').value=today();
@@ -2626,21 +2618,19 @@ function previewLegRoll(){
   var leg=pos.openLegs[activeLegIdx];if(!leg)return;
   var closePrice=parseFloat(G('rl-close-price').value)||0;
   var newPrice=parseFloat(G('rl-new-price').value)||0;
-  var newQty=parseFloat(G('rl-new-qty').value)||1;
-  var oldQty=parseFloat(leg.qty)||1;
-  var newAction=G('rl-new-action').value;
-
-  // Cost to close old leg
-  // If original was STO → buying back costs money (debit)
-  // If original was BTO → selling back receives money (credit)
-  var closeCash = leg.action==='STO' ? -(closePrice*oldQty*100) : (closePrice*oldQty*100);
-  // New leg cash
-  var newCash = newAction==='STO' ? (newPrice*newQty*100) : -(newPrice*newQty*100);
+  var qty=parseFloat(leg.qty)||1;
+  var isSTO=leg.action==='STO';
+  var closeCash=isSTO?-(closePrice*qty*100):(closePrice*qty*100);
+  var newCash=isSTO?(newPrice*qty*100):-(newPrice*qty*100);
   var net=closeCash+newCash;
-
+  var comm=openComm(qty)+openComm(qty);
+  var netAfterComm=net-comm;
+  var stats=chainStats(pos);
+  var campaign=stats.runningNet+netAfterComm;
   G('rl-prev-close').innerHTML=fp(closeCash);
   G('rl-prev-new').innerHTML=fp(newCash);
-  G('rl-prev-net').innerHTML=fp(net);
+  G('rl-prev-net').innerHTML=fp(netAfterComm);
+  G('rl-prev-campaign').innerHTML=fp(campaign);
   G('rl-preview').style.display='block';
 }
 
@@ -2650,21 +2640,21 @@ function saveRollLeg(){
   var closePrice=parseFloat(G('rl-close-price').value)||0;
   var newStrike=parseFloat(G('rl-new-strike').value);
   var newExpiry=G('rl-new-expiry').value;
-  var newQty=parseFloat(G('rl-new-qty').value)||1;
   var newPrice=parseFloat(G('rl-new-price').value);
   var date=G('rl-date').value;
   var note=G('rl-note').value;
-  var newAction=G('rl-new-action').value;
-  var newType=G('rl-new-type').value;
+  // Action/type/qty always same as original leg
+  var newAction=leg.action;
+  var newType=leg.optType;
+  var qty=parseFloat(leg.qty)||1;
 
   if(!date){G('rl-err').textContent='Enter a date.';return;}
-  if(!newStrike||!newExpiry||!newPrice){G('rl-err').textContent='Fill in all new leg fields.';return;}
+  if(!newStrike||!newExpiry||isNaN(newPrice)||newPrice===0){G('rl-err').textContent='Fill in all new leg fields.';return;}
 
-  var oldQty=parseFloat(leg.qty)||1;
-  var closeCash=leg.action==='STO'?-(closePrice*oldQty*100):(closePrice*oldQty*100);
-  var newCash=newAction==='STO'?(newPrice*newQty*100):-(newPrice*newQty*100);
+  var closeCash=leg.action==='STO'?-(closePrice*qty*100):(closePrice*qty*100);
+  var newCash=newAction==='STO'?(newPrice*qty*100):-(newPrice*qty*100);
   var net=closeCash+newCash;
-  var comm=openComm(oldQty)+openComm(newQty);
+  var comm=openComm(qty)+openComm(qty);
   var netAfterComm=net-comm;
 
   var detail='Rolled '+leg.action+' '+leg.optType+' $'+parseFloat(leg.strike).toFixed(2)+' → '+newAction+' '+newType+' $'+newStrike.toFixed(2)+' exp '+newExpiry;
@@ -2679,13 +2669,15 @@ function saveRollLeg(){
     detail:detail,
     closed:false,
     legRoll:{
-      oldLeg:{action:leg.action,optType:leg.optType,strike:leg.strike,expiry:leg.expiry,qty:oldQty},
-      newLeg:{action:newAction,optType:newType,strike:newStrike,expiry:newExpiry,qty:newQty,price:newPrice},
+      oldLeg:{action:leg.action,optType:leg.optType,strike:leg.strike,expiry:leg.expiry,qty:qty},
+      newLeg:{action:newAction,optType:newType,strike:newStrike,expiry:newExpiry,qty:qty,price:newPrice},
       closePrice:closePrice
     }
   };
   if(!pos.events)pos.events=[];
   pos.events.push(ev);
+  // Update leg strike/expiry so next roll pre-fills correctly
+  pos.openLegs[activeLegIdx]=Object.assign({},leg,{strike:newStrike,expiry:newExpiry});
   save();
   closeM('m-roll-leg');
   renderDetail();
