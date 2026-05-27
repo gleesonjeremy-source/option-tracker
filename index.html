@@ -1377,6 +1377,16 @@ function ccStats(pos){
 
   var breakEven=totalShares>0?avgCost-(optionsNet/totalShares):null;
 
+  // Roll P&L — what happens to OPTIONS-only P&L under different close scenarios
+  var openCallGrossPrem=openCall?(parseFloat(openCall.premPerShare)||0)*(parseFloat(openCall.qty)||1)*100:0;
+  var openCallQty=openCall?parseFloat(openCall.qty)||1:1;
+  // If the open call expires worthless: keep full premium, pay expiry fee
+  var worthlessPnL=openCall?closedOptionsNet+openCallGrossPrem-(cfg.ef||0):null;
+  // If you close right now: closed net + unrealized gain on open call minus close commission
+  var closeNowPnL=(openCall&&openCallUnreal!==null)?closedOptionsNet+openCallUnreal-closeComm(openCallQty):null;
+  // Break-even close price: the most you can pay per share to close and still net $0 on options
+  var breakEvenClosePrice=openCall?(closedOptionsNet+openCallGrossPrem-closeComm(openCallQty))/(openCallQty*100):null;
+
   // Share sales P&L
   var shareSalesPnL=0;
   (pos.shareSales||[]).forEach(function(ss){shareSalesPnL+=ss.pnl||0;});
@@ -1395,7 +1405,8 @@ function ccStats(pos){
   return{activeLots,totalShares,avgCost,totalCost,curP,shareUnreal,
     grossIn,grossOut,totalComm,optionsNet,closedOptionsNet,closedPremiums,
     closedPnL,liveCallValue,assignedSharePnL,shareSalesPnL,
-    openCall,openCallUnreal,breakEven,combinedPnL,isClosed};
+    openCall,openCallUnreal,breakEven,combinedPnL,isClosed,
+    worthlessPnL,closeNowPnL,breakEvenClosePrice};
 }
 
 /* ============================================================
@@ -1693,6 +1704,34 @@ function renderCCDetail(pos){
             '<button class="btn btn-sm btn-pur" onclick="openM(\'m-roll-call\')">Roll</button>'+
             '<button class="btn btn-sm" onclick="openM(\'m-close-call\')">Close</button>'+
           '</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }
+
+  if(s.openCall&&s.worthlessPnL!==null){
+    var bep=s.breakEvenClosePrice;
+    var bepStr=bep!==null?(bep<=0?'<span style="color:var(--green)">Already profitable ✓</span>':'&le; $'+bep.toFixed(2)+'/sh'):'—';
+    var bepColor=bep!==null&&bep<=0?'var(--green)':'var(--txt)';
+    h+='<div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:12px">'+
+      '<div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Roll P&amp;L — options only</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">'+
+        '<div style="background:var(--bg);border-radius:var(--rs);padding:10px 12px;border:1px solid var(--border)">'+
+          '<div style="font-size:11px;color:var(--txt2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">If expires worthless</div>'+
+          '<div style="font-size:17px;font-weight:700;'+((s.worthlessPnL>=0)?'color:var(--green)':'color:var(--red)')+'">'+fmt(s.worthlessPnL)+'</div>'+
+          '<div style="font-size:11px;color:var(--txt3);margin-top:2px">Full premium kept</div>'+
+        '</div>'+
+        '<div style="background:var(--bg);border-radius:var(--rs);padding:10px 12px;border:1px solid var(--border)">'+
+          '<div style="font-size:11px;color:var(--txt2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Close now</div>'+
+          (s.closeNowPnL!==null?
+            '<div style="font-size:17px;font-weight:700;'+((s.closeNowPnL>=0)?'color:var(--green)':'color:var(--red)')+'">'+fmt(s.closeNowPnL)+'</div>'+
+            '<div style="font-size:11px;color:var(--txt3);margin-top:2px">At current mark</div>'
+          :'<div style="font-size:13px;color:var(--txt2);margin-top:4px">Set mark to see</div>')+
+        '</div>'+
+        '<div style="background:var(--bg);border-radius:var(--rs);padding:10px 12px;border:1px solid var(--border)">'+
+          '<div style="font-size:11px;color:var(--txt2);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Break-even close price</div>'+
+          '<div style="font-size:17px;font-weight:700;color:'+bepColor+'">'+bepStr+'</div>'+
+          '<div style="font-size:11px;color:var(--txt3);margin-top:2px">Max to pay &amp; still break even</div>'+
         '</div>'+
       '</div>'+
     '</div>';
