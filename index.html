@@ -246,6 +246,7 @@ body.force-light{
       <button class="btn btn-sm" onclick="showV('v-scorecard')">Scorecard</button>
       <button class="btn btn-sm" onclick="showV('v-history')">History</button>
       <button class="btn btn-sm" onclick="showV('v-settings')">Settings</button>
+      <button class="btn btn-b btn-sm" id="ts-fetch-btn" onclick="openTSFetch()">⬇ Fetch from TradeStation</button>
       <button class="btn btn-p btn-sm" onclick="openNewModal()">+ New position</button>
     </div>
   </div>
@@ -291,6 +292,11 @@ body.force-light{
   <div class="mg g2" style="margin-bottom:16px">
     <div class="met"><div class="met-lbl" id="sc-month-lbl">This month</div><div class="met-val" id="sc-month">—</div><div class="met-sub">Closed P&L</div></div>
     <div class="met"><div class="met-lbl" id="sc-year-lbl">This year</div><div class="met-val" id="sc-year">—</div><div class="met-sub">Closed P&L</div></div>
+  </div>
+  <!-- Open position collected premium -->
+  <div class="mg g2" style="margin-bottom:16px">
+    <div class="met"><div class="met-lbl">Collected (open positions)</div><div class="met-val" id="sc-open-collected">—</div><div class="met-sub">Rolls &amp; closes banked while still open</div></div>
+    <div class="met"><div class="met-lbl">Total incl. open activity</div><div class="met-val" id="sc-grand-total">—</div><div class="met-sub">Closed P&L + open rolls/closes</div></div>
   </div>
 
   <!-- Top performers -->
@@ -418,6 +424,26 @@ body.force-light{
       <button class="btn btn-r" id="rs-conf" style="display:none" onclick="confirmRS()">Replace all data</button>
     </div>
     <div id="rs-msg" style="font-size:13px;margin-top:8px"></div>
+  </div>
+
+  <!-- TRADESTATION API -->
+  <div class="card">
+    <div class="card-title">TradeStation API</div>
+    <div class="info" style="margin-bottom:12px">Credentials are stored locally in your browser only. Run <code style="font-size:11px;background:var(--bg3);padding:1px 5px;border-radius:3px">python ts_import.py --serve</code> in a terminal to start the local server, then click <strong>Fetch from TradeStation</strong> in the nav bar.</div>
+    <div class="form-row">
+      <div class="fld" style="flex:1"><label>Client ID</label><input id="ts-client-id" placeholder="your-client-id" autocomplete="off"></div>
+    </div>
+    <div class="form-row">
+      <div class="fld" style="flex:1"><label>Client Secret</label><input id="ts-client-secret" type="password" placeholder="your-client-secret" autocomplete="off"></div>
+    </div>
+    <div class="form-row">
+      <div class="fld" style="flex:1 0 100px;max-width:140px"><label>Days to look back</label><input id="ts-days" type="number" min="1" max="365" value="90"></div>
+      <div class="fld" style="flex:1 0 120px;max-width:180px"><label>Server port</label><input id="ts-port" type="number" min="1024" max="65535" value="8765"></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-p" onclick="saveTSCreds()">Save credentials</button>
+      <span id="ts-creds-ok" style="display:none;font-size:12px;color:var(--green)">Saved.</span>
+    </div>
   </div>
 </div>
 
@@ -1050,6 +1076,149 @@ body.force-light{
     <div id="cl-err2" class="err-txt"></div>
   </div>
 </div>
+</div>
+
+<!-- ================================================ TRADESTATION FETCH MODAL -->
+<div id="m-ts-fetch" class="overlay" onclick="omClick(event,'m-ts-fetch')">
+  <div class="modal" style="max-width:640px;width:100%">
+    <div class="modal-title">Fetch from TradeStation</div>
+
+    <!-- Status bar -->
+    <div id="ts-status-bar" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:13px">
+      <span id="ts-status-dot" style="width:9px;height:9px;border-radius:50%;background:var(--txt3);flex-shrink:0;display:inline-block"></span>
+      <span id="ts-status-msg" style="color:var(--txt2)">Checking server…</span>
+      <button id="ts-reauth-btn" class="btn btn-sm" style="display:none;margin-left:auto" onclick="tsReAuth()">Re-authenticate</button>
+    </div>
+
+    <!-- Loading -->
+    <div id="ts-loading" style="display:none;text-align:center;padding:24px 0;color:var(--txt2);font-size:13px">Fetching fills…</div>
+
+    <!-- No new fills -->
+    <div id="ts-empty" style="display:none;text-align:center;padding:24px 0;color:var(--txt2);font-size:13px">No new fills found.</div>
+
+    <!-- Fill review list -->
+    <div id="ts-fills-wrap" style="display:none">
+      <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Review new fills</div>
+      <div id="ts-fills-list"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+        <button class="btn" onclick="closeM('m-ts-fetch')">Cancel</button>
+        <button class="btn btn-g" id="ts-import-btn" onclick="tsConfirmImport()">Import selected</button>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div id="ts-error" style="display:none;padding:10px 14px;background:var(--red-bg);border-radius:var(--rs);font-size:13px;color:var(--red);margin-bottom:10px"></div>
+
+    <div id="ts-not-running" style="display:none;font-size:13px;color:var(--txt2);line-height:1.6">
+      Server not reachable. Start it with:<br>
+      <code style="font-size:12px;background:var(--bg3);padding:3px 8px;border-radius:4px;display:inline-block;margin-top:6px">python ts_import.py --serve</code>
+    </div>
+  </div>
+</div>
+
+<!-- ADD SHORT LEG (chain) -->
+<div id="m-add-short" class="overlay" onclick="omClick(event,'m-add-short')">
+  <div class="modal">
+    <div class="modal-title">Write short leg (STO)</div>
+    <div class="info">Sell to open a short option against your long backbone.</div>
+    <div class="form-row">
+      <div class="fld w115"><label>Date sold</label><input id="as-date" type="date"></div>
+      <div class="fld w70"><label>Type</label><select id="as-type"><option>Call</option><option>Put</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="fld w100"><label>Strike ($)</label><input id="as-strike" type="number" step="0.5" placeholder="235.00"></div>
+      <div class="fld w115"><label>Expiry</label><input id="as-exp" type="date"></div>
+      <div class="fld w70"><label>Contracts</label><input id="as-qty" type="number" min="1" value="1" step="1"></div>
+    </div>
+    <div class="form-row">
+      <div class="fld"><label>Premium received ($/share)</label><input id="as-prem" type="number" step="0.01" placeholder="0.89"><div class="hint">1 contract = 100 shares.</div></div>
+    </div>
+    <div id="as-upgrade-box" style="display:none;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;margin-top:10px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px">Rename position type?</div>
+      <div style="font-size:12px;color:var(--txt2);margin-bottom:8px">This is your first short leg. You can rename this position — or leave it as-is.</div>
+      <div class="form-row" style="align-items:center">
+        <div class="fld"><label>New strategy name</label><select id="as-strategy"></select></div>
+        <div class="fld w70" style="align-self:flex-end;padding-bottom:2px"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px"><input type="checkbox" id="as-rename"> Rename</label></div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
+      <button class="btn" onclick="closeM('m-add-short')">Cancel</button>
+      <button class="btn btn-p" onclick="saveAddShort()">Save</button>
+    </div>
+    <div id="as-err" class="err-txt"></div>
+  </div>
+</div>
+
+<!-- CLOSE SHORT LEG (chain) -->
+<div id="m-close-short" class="overlay" onclick="omClick(event,'m-close-short')">
+  <div class="modal">
+    <div class="modal-title">Close short leg</div>
+    <div id="cs-info" style="font-size:13px;color:var(--txt2);margin-bottom:10px"></div>
+    <div class="mtabs">
+      <button class="mtab on" id="cs-tab-exp" onclick="shortCloseTab('exp')">Expired worthless</button>
+      <button class="mtab" id="cs-tab-btc" onclick="shortCloseTab('btc')">Bought to close</button>
+    </div>
+    <div id="cs-exp" class="mpane on">
+      <div class="succ">Option expired worthless — you keep the full premium.</div>
+      <div class="form-row"><div class="fld w115"><label>Expiry date</label><input id="cs-exp-dt" type="date"></div></div>
+    </div>
+    <div id="cs-btc" class="mpane">
+      <div class="form-row">
+        <div class="fld"><label>Buyback price ($/share)</label><input id="cs-btc-p" type="number" step="0.01" placeholder="0.05" oninput="previewCS()"></div>
+        <div class="fld w115"><label>Date</label><input id="cs-btc-dt" type="date"></div>
+      </div>
+      <div id="cs-preview" style="display:none;background:var(--bg2);border-radius:var(--rs);padding:9px 12px;margin-top:4px;font-size:13px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Premium received</span><span class="green" id="csp-prem"></span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Buyback cost</span><span class="red" id="csp-btc"></span></div>
+        <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:5px;margin-top:3px;font-weight:700"><span>Realized P&L this leg</span><span id="csp-net"></span></div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
+      <button class="btn" onclick="closeM('m-close-short')">Cancel</button>
+      <button class="btn btn-p" onclick="saveCloseShort()">Confirm</button>
+    </div>
+    <div id="cs-err" class="err-txt"></div>
+  </div>
+</div>
+
+<!-- ROLL SHORT LEG (chain) -->
+<div id="m-roll-short" class="overlay" onclick="omClick(event,'m-roll-short')">
+  <div class="modal">
+    <div class="modal-title">Roll short leg</div>
+    <div id="rs-info" style="font-size:13px;color:var(--txt2);margin-bottom:10px"></div>
+    <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px">Step 1 — Buy to close current short</div>
+    <div class="form-row">
+      <div class="fld"><label>Buyback price ($/share)</label><input id="rs-btc" type="number" step="0.01" placeholder="0.05" oninput="previewRS()"></div>
+      <div class="fld w115"><label>Date</label><input id="rs-date" type="date"></div>
+    </div>
+    <div class="div-line"></div>
+    <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px">Step 2 — Sell to open new short</div>
+    <div class="form-row">
+      <div class="fld w70"><label>Type</label><select id="rs-type"><option>Call</option><option>Put</option></select></div>
+      <div class="fld w100"><label>New strike ($)</label><input id="rs-strike" type="number" step="0.5" placeholder="240.00"></div>
+      <div class="fld w115"><label>New expiry</label><input id="rs-exp" type="date"></div>
+      <div class="fld w70"><label>Contracts</label><input id="rs-qty" type="number" min="1" value="1" step="1" oninput="previewRS()"></div>
+    </div>
+    <div class="form-row">
+      <div class="fld"><label>New premium ($/share)</label><input id="rs-prem" type="number" step="0.01" placeholder="0.52" oninput="previewRS()"></div>
+    </div>
+    <div id="rs-preview" style="display:none;background:var(--bg2);border-radius:var(--rs);padding:9px 12px;margin-top:2px;font-size:13px">
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">Closed leg — realized P&L</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Premium originally received</span><span class="green" id="rsp-orig"></span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Buyback cost</span><span class="red" id="rsp-btc"></span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="mu">Commissions</span><span class="red" id="rsp-comm"></span></div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:5px;margin-top:0;font-weight:700;padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid var(--border)"><span>Realized this leg</span><span id="rsp-realized"></span></div>
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">New leg opened</div>
+      <div style="display:flex;justify-content:space-between;font-weight:700"><span>New premium collected</span><span class="green" id="rsp-newprem"></span></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
+      <button class="btn" onclick="closeM('m-roll-short')">Cancel</button>
+      <button class="btn btn-p" onclick="saveRollShort()">Save roll</button>
+    </div>
+    <div id="rs-err" class="err-txt"></div>
+  </div>
+</div>
+
 </div><!-- #app -->
 
 <script>
@@ -1153,6 +1322,7 @@ var DEF_CFG={pc:0.80,af:0,ef:0};
 var DEF_STRATEGIES=["Bear call spread", "Bear put spread", "Bull call spread", "Bull put spread", "Butterfly", "Broken wing butterfly", "Calendar spread", "Covered call (chain)", "Custom", "Diagonal spread", "Iron butterfly", "Iron condor", "Jade lizard", "Long call", "Long put", "PMCC", "Sell put (CSP)", "Strangle", "Straddle"];
 var positions=[], cfg=Object.assign({},DEF_CFG), strategies=DEF_STRATEGIES.slice(), celebSound='cha-ching', deletedEvents={};
 var activeId=null, nchLegs=[], ceMode='roll', clchTabMode='exp';
+var activeShortLegId=null, shortCloseTabActive='exp';
 var pendingRS=null;
 
 function load(){
@@ -1443,12 +1613,30 @@ function chainStats(pos){
     if(ev.closed) isClosed=true;
   });
 
-  var runningNet=openCost+eventsNet;
+  // Short legs (STO written against backbone, each tracked independently)
+  var realizedFromShorts=0;
+  var openShortLeg=null;
+  (pos.shortLegs||[]).forEach(function(sl){
+    var qty=parseFloat(sl.qty)||1;
+    var prem=parseFloat(sl.premPerShare)||0;
+    var btc=parseFloat(sl.btcPrice)||0;
+    if(sl.status==='open'){
+      openShortLeg=sl;
+    } else if(sl.status==='expired'){
+      realizedFromShorts+=prem*qty*100-openComm(qty)-cfg.ef;
+      totalComm+=openComm(qty)+cfg.ef;
+    } else if(sl.status==='btc'||sl.status==='rolled'){
+      realizedFromShorts+=(prem-btc)*qty*100-openComm(qty)-closeComm(qty);
+      totalComm+=openComm(qty)+closeComm(qty);
+    }
+  });
+
+  var runningNet=openCost+eventsNet+realizedFromShorts;
 
   var costBasisRemaining=null;
   var isFree=false;
   if(isDebit){
-    costBasisRemaining=originalDebit-totalCreditsFromEvents;
+    costBasisRemaining=originalDebit-totalCreditsFromEvents-Math.max(0,realizedFromShorts);
     if(costBasisRemaining<=0) isFree=true;
   }
 
@@ -1457,7 +1645,8 @@ function chainStats(pos){
 
   return{openCost,isDebit,originalDebit,eventsNet,runningNet,
     totalComm,costBasisRemaining,isFree,isClosed,
-    finalPnL,unrealizedNet,totalCreditsFromEvents};
+    finalPnL,unrealizedNet,totalCreditsFromEvents,
+    realizedFromShorts,openShortLeg};
 }
 
 
@@ -1501,7 +1690,38 @@ function calcSettledEvents(pos){
       var evKey='chain_'+pos.id+'_close';
       events.push({date:getCloseDate(pos),type:pos.strategy||'Position',pnl:s.finalPnL||0,
         ticker:pos.ticker,posId:pos.id,isFull:true,evKey:evKey});
+    } else {
+      // Open chain position: emit individual roll/adj/close events
+      (pos.events||[]).forEach(function(ev){
+        if(ev.eventType==='open') return;
+        if(!ev.netCash) return;
+        var evKey='chain_'+pos.id+'_ev_'+ev.id;
+        var evType=ev.eventType==='roll'?'Roll (open pos)':ev.eventType==='adj'?'Adj (open pos)':'Leg closed (open pos)';
+        events.push({date:ev.date,type:evType,pnl:ev.netCash,
+          ticker:pos.ticker,posId:pos.id,evKey:evKey});
+      });
     }
+    // Emit each closed shortLeg as its own realized event (open or closed position)
+    (pos.shortLegs||[]).forEach(function(sl){
+      if(sl.status==='open') return;
+      var qty=parseFloat(sl.qty)||1;
+      var prem=parseFloat(sl.premPerShare)||0;
+      var btc=parseFloat(sl.btcPrice)||0;
+      var pnl,type;
+      var evKey='chain_'+pos.id+'_sl_'+sl.id;
+      if(sl.status==='expired'){
+        pnl=prem*qty*100-openComm(qty)-cfg.ef;
+        type='Short expired';
+      } else if(sl.status==='btc'){
+        pnl=(prem-btc)*qty*100-openComm(qty)-closeComm(qty);
+        type='Short BTC';
+      } else if(sl.status==='rolled'){
+        pnl=(prem-btc)*qty*100-openComm(qty)-closeComm(qty);
+        type='Short rolled';
+      }
+      events.push({date:sl.closeDate||sl.dateSold,type:type,pnl:pnl,
+        ticker:pos.ticker,posId:pos.id,evKey:evKey});
+    });
   }
   return events;
 }
@@ -1526,7 +1746,7 @@ function showV(name){
   if(name==='v-home') renderHome();
   if(name==='v-scorecard'){renderScorecard();}
   if(name==='v-history'){renderHistory();}
-  if(name==='v-settings'){G('s-pc').value=cfg.pc;G('s-af').value=cfg.af;G('s-ef').value=cfg.ef;renderStratList();populateHistoryFilters();}
+  if(name==='v-settings'){G('s-pc').value=cfg.pc;G('s-af').value=cfg.af;G('s-ef').value=cfg.ef;renderStratList();populateHistoryFilters();loadTSCredsUI();}
 }
 
 /* ============================================================
@@ -1607,6 +1827,13 @@ function ccCard(pos){
 function chainCard(pos){
   var s=chainStats(pos);
   var net=s.isClosed?s.finalPnL:s.unrealizedNet;
+  var realizedToDate=0;
+  if(!s.isClosed){
+    (pos.events||[]).forEach(function(ev){
+      if(ev.eventType!=='open') realizedToDate+=ev.netCash||0;
+    });
+    realizedToDate+=s.realizedFromShorts||0;
+  }
   return '<div class="pos-card" data-posid="'+pos.id+'" onclick="openDetail(this.dataset.posid)">'+
     '<div class="pos-hdr">'+
       '<div>'+
@@ -1614,6 +1841,7 @@ function chainCard(pos){
         (s.isFree?'<span class="pill p-free">FREE TRADE</span>':'')+
         (s.isClosed?'<span class="pill p-closed">Closed</span>':'')+'</div>'+
         '<div class="pos-sub">'+(pos.events||[]).length+' event'+(((pos.events||[]).length)!==1?'s':'')+' logged</div>'+
+        (!s.isClosed&&realizedToDate!==0?'<div style="font-size:11px;margin-top:2px"><span style="color:var(--txt2)">Realized to date: </span><span style="font-weight:600;color:'+(realizedToDate>=0?'var(--green)':'var(--red)')+'">'+fmt(realizedToDate)+'</span></div>':'')+
       '</div>'+
       '<div style="text-align:right">'+
         '<div style="font-size:17px;font-weight:700">'+(net!==null?fp(net):'<span class="mu">—</span>')+'</div>'+
@@ -1825,8 +2053,15 @@ function renderChainDetail(pos){
   var s=chainStats(pos);
   var net=s.isClosed?s.finalPnL:s.unrealizedNet;
 
+  var hasLongBackbone=(pos.openLegs||[]).some(function(l){return l.action==='BTO';});
   var acts='<div style="display:flex;gap:7px;flex-wrap:wrap">'+
-    (!s.isClosed?'<button class="btn btn-sm btn-pur" onclick="openM(\'m-chain-event\')">+ Log roll / adjustment</button><button class="btn btn-sm btn-b" onclick="openAddLeg()">+ Add leg</button><button class="btn btn-sm btn-r" onclick="openCloseChain()">Close position</button>':'<button class="btn btn-sm btn-g" onclick="reopenChain()">Reopen</button>')+
+    (!s.isClosed?
+      '<button class="btn btn-sm btn-pur" onclick="openM(\'m-chain-event\')">+ Log roll / adjustment</button>'+
+      '<button class="btn btn-sm btn-b" onclick="openAddLeg()">+ Add leg</button>'+
+      (hasLongBackbone&&!s.openShortLeg?'<button class="btn btn-sm btn-g" onclick="openAddShort()">+ Write short</button>':'')+
+      (s.openShortLeg?'<button class="btn btn-sm btn-pur" onclick="openRollShort(\''+s.openShortLeg.id+'\')">Roll short</button><button class="btn btn-sm" onclick="openCloseShort(\''+s.openShortLeg.id+'\')">Close short</button>':'')+
+      '<button class="btn btn-sm btn-r" onclick="openCloseChain()">Close position</button>'
+    :'<button class="btn btn-sm btn-g" onclick="reopenChain()">Reopen</button>')+
     '<button class="btn btn-sm btn-r" data-posid="'+pos.id+'" onclick="delPos(this.dataset.posid)">Delete</button>'+
   '</div>';
   G('det-actions').innerHTML=acts;
@@ -1891,6 +2126,58 @@ function renderChainDetail(pos){
     '</div>';
   }
 
+  // Short legs section
+  if((pos.shortLegs&&pos.shortLegs.length)||(!s.isClosed&&hasLongBackbone)){
+    h+='<div class="card">'+
+      '<div class="sec-hdr"><h3>Short legs</h3>'+
+        (!s.isClosed&&!s.openShortLeg?'<button class="btn btn-sm btn-g" onclick="openAddShort()">+ Write short</button>':'')+
+      '</div>';
+    if(!pos.shortLegs||!pos.shortLegs.length){
+      h+='<div class="empty">No short legs yet — use "Write short" to sell a hedge against your long.</div>';
+    } else {
+      h+='<div class="trow thdr" style="grid-template-columns:100px 70px 1fr 80px 90px 80px;gap:8px;font-size:11px">'+
+        '<span>Date sold</span><span>Type</span><span>Strike / Expiry</span><span>Premium</span><span>Status</span><span style="text-align:right">P&L</span>'+
+      '</div>';
+      pos.shortLegs.slice().reverse().forEach(function(sl){
+        var qty=parseFloat(sl.qty)||1;
+        var prem=parseFloat(sl.premPerShare)||0;
+        var btc=parseFloat(sl.btcPrice)||0;
+        var grossP=prem*qty*100;
+        var pnl=null,badge='',btcInfo='';
+        if(sl.status==='open'){
+          badge='<span class="pill p-live">Open</span>';
+        } else if(sl.status==='expired'){
+          pnl=grossP-openComm(qty)-cfg.ef;
+          badge='<span class="pill p-exp">Expired</span>';
+        } else if(sl.status==='btc'){
+          pnl=(prem-btc)*qty*100-openComm(qty)-closeComm(qty);
+          badge='<span class="pill p-btc">BTC</span>';
+          btcInfo='BTC $'+btc.toFixed(2)+'/sh';
+        } else if(sl.status==='rolled'){
+          pnl=(prem-btc)*qty*100-openComm(qty)-closeComm(qty);
+          badge='<span class="pill p-rolled">Rolled</span>';
+          btcInfo='BTC $'+btc.toFixed(2)+'/sh';
+        }
+        h+='<div class="trow" style="grid-template-columns:100px 70px 1fr 80px 90px 80px;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px">'+
+          '<span style="font-size:11px;color:var(--txt2)">'+sl.dateSold+'</span>'+
+          '<span>'+(sl.optType||'Call')+'</span>'+
+          '<span><strong>$'+parseFloat(sl.strike).toFixed(2)+'</strong><br><span style="font-size:11px;color:var(--txt2)">'+sl.expiry+(qty>1?' &bull; '+qty+'x':'')+'</span></span>'+
+          '<span>$'+prem.toFixed(2)+'/sh<br><span style="font-size:11px;color:var(--txt2)">$'+grossP.toFixed(2)+'</span></span>'+
+          '<span>'+badge+(btcInfo?'<br><span style="font-size:11px;color:var(--txt2)">'+btcInfo+'</span>':'')+
+            (sl.status==='open'?'<br><button class="btn btn-sm" style="font-size:10px;padding:2px 6px;margin-top:3px" onclick="openRollShort(\''+sl.id+'\')">Roll</button> <button class="btn btn-sm" style="font-size:10px;padding:2px 6px" onclick="openCloseShort(\''+sl.id+'\')">Close</button>':'')+
+          '</span>'+
+          '<span style="text-align:right;font-weight:700">'+(pnl!==null?fp(pnl):'<span class="mu">Open</span>')+'</span>'+
+        '</div>';
+      });
+      if(s.realizedFromShorts!==0){
+        h+='<div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;font-weight:700;border-top:2px solid var(--border)">'+
+          '<span>Total realized from shorts</span><span>'+fp(s.realizedFromShorts)+'</span>'+
+        '</div>';
+      }
+    }
+    h+='</div>';
+  }
+
   if(pos.events&&pos.events.length){
     h+='<div class="card">'+
       '<div class="sec-hdr"><h3>Roll &amp; adjustment timeline</h3></div>'+
@@ -1918,6 +2205,28 @@ function renderChainDetail(pos){
 
   if(!pos.events||!pos.events.length){
     h+='<div class="card"><div class="empty">No events yet — log your first roll or adjustment</div></div>';
+  }
+
+  /* Scanner context (if position was created from scanner pipeline) */
+  if(pos.scannerData){
+    var sd=pos.scannerData;
+    var secColor=sd.ivSection<=2.2?'var(--green)':sd.ivSection<=3?'orange':'var(--red)';
+    var trendArrow=sd.ivTrend==='RISING'?'↑':sd.ivTrend==='FALLING'?'↓':'→';
+    h+='<div class="card" style="border-left:3px solid '+secColor+'">'+
+      '<div class="sec-hdr"><h3>Scanner context</h3><span style="font-size:11px;color:var(--txt2)">Scanned '+sd.scanDate+'</span></div>'+
+      '<div class="mg g4" style="margin-bottom:10px">'+
+        '<div class="met"><div class="met-lbl">IV at entry</div><div class="met-val">'+sd.ivAtEntry.toFixed(1)+'%</div><div class="met-sub">'+sd.ivLabel+' (sec '+sd.ivSection+')</div></div>'+
+        '<div class="met"><div class="met-lbl">IV percentile</div><div class="met-val">'+sd.ivPercentile.toFixed(1)+'%</div><div class="met-sub">vs 52-week HV range</div></div>'+
+        '<div class="met"><div class="met-lbl">IV room</div><div class="met-val">'+sd.ivRoom.toFixed(1)+'%</div><div class="met-sub">HV high: '+sd.hvHigh.toFixed(1)+'%</div></div>'+
+        '<div class="met"><div class="met-lbl">IV trend</div><div class="met-val">'+trendArrow+' '+sd.ivTrend+'</div><div class="met-sub">Term structure proxy</div></div>'+
+      '</div>'+
+      '<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--txt2)">'+
+        '<span>Earnings: <strong style="color:var(--txt1)">'+sd.earningsDate+'</strong></span>'+
+        '<span>Recommended: <strong style="color:var(--txt1)">'+(sd.recommended||'—').toUpperCase()+'</strong></span>'+
+        '<span>Cost/max profit: <strong style="color:var(--txt1)">'+(sd.costToMaxProfit?sd.costToMaxProfit.toFixed(4):'—')+'</strong></span>'+
+        '<span>Stock at scan: <strong style="color:var(--txt1)">$'+(sd.stockPriceAtScan?sd.stockPriceAtScan.toFixed(2):'—')+'</strong></span>'+
+      '</div>'+
+    '</div>';
   }
 
   G('det-content').innerHTML=h;
@@ -3171,6 +3480,156 @@ function renderHistory(){
 /* ============================================================
    SCORECARD
    ============================================================ */
+/* ============================================================
+   SHORT LEG MANAGEMENT (chain positions)
+   ============================================================ */
+function getOpenShortLeg(pos){
+  return (pos.shortLegs||[]).find(function(sl){return sl.status==='open';})||null;
+}
+
+function openAddShort(){
+  var pos=getP(activeId);if(!pos)return;
+  G('as-date').value=today();
+  G('as-strike').value='';G('as-exp').value='';G('as-qty').value=1;G('as-prem').value='';G('as-err').textContent='';
+  G('as-type').value='Call';
+  var isFirst=!(pos.shortLegs&&pos.shortLegs.length);
+  var box=G('as-upgrade-box');
+  if(isFirst){
+    box.style.display='block';
+    G('as-rename').checked=false;
+    populateStratSelect('as-strategy');
+    G('as-strategy').value=pos.strategy||'Diagonal';
+  } else {
+    box.style.display='none';
+  }
+  openM('m-add-short');
+}
+
+function saveAddShort(){
+  var pos=getP(activeId);if(!pos)return;
+  var date=vv('as-date'),optType=vv('as-type'),strike=parseFloat(vv('as-strike')),
+      exp=vv('as-exp'),qty=parseFloat(vv('as-qty'))||1,prem=parseFloat(vv('as-prem'));
+  if(!date){G('as-err').textContent='Enter date.';return;}
+  if(!strike||strike<=0){G('as-err').textContent='Enter strike.';return;}
+  if(!exp){G('as-err').textContent='Enter expiry.';return;}
+  if(!prem||prem<=0){G('as-err').textContent='Enter premium.';return;}
+  if(!pos.shortLegs) pos.shortLegs=[];
+  var hasOpen=pos.shortLegs.some(function(sl){return sl.status==='open';});
+  if(hasOpen){G('as-err').textContent='Close or roll the existing open short first.';return;}
+  pos.shortLegs.push({id:uid(),dateSold:date,optType:optType,strike:strike,expiry:exp,
+    qty:qty,premPerShare:prem,btcPrice:null,closeDate:null,status:'open'});
+  if(G('as-rename').checked){
+    var newStrat=vv('as-strategy');
+    if(newStrat){pos.strategy=newStrat;pos.name=pos.ticker+' '+newStrat;}
+  }
+  save();closeM('m-add-short');renderDetail();
+}
+
+function shortCloseTab(t){
+  shortCloseTabActive=t;
+  ['exp','btc'].forEach(function(k){
+    G('cs-tab-'+k).classList.toggle('on',k===t);
+    G('cs-'+k).classList.toggle('on',k===t);
+  });
+}
+
+function openCloseShort(legId){
+  var pos=getP(activeId);if(!pos)return;
+  var sl=(pos.shortLegs||[]).find(function(x){return x.id===legId;});if(!sl)return;
+  activeShortLegId=legId;
+  shortCloseTab('exp');
+  G('cs-exp-dt').value=sl.expiry||today();
+  G('cs-btc-p').value='';G('cs-btc-dt').value=today();G('cs-err').textContent='';
+  G('cs-preview').style.display='none';
+  G('cs-info').textContent='$'+parseFloat(sl.strike).toFixed(2)+' '+sl.optType+' exp '+sl.expiry+' · '+parseFloat(sl.premPerShare).toFixed(2)+'/sh received';
+  openM('m-close-short');
+}
+
+function previewCS(){
+  var pos=getP(activeId);if(!pos||!activeShortLegId)return;
+  var sl=(pos.shortLegs||[]).find(function(x){return x.id===activeShortLegId;});if(!sl)return;
+  var btc=parseFloat(vv('cs-btc-p'))||0;if(!btc)return;
+  var qty=parseFloat(sl.qty)||1,prem=parseFloat(sl.premPerShare)||0;
+  var grossP=prem*qty*100,grossB=btc*qty*100,comm=openComm(qty)+closeComm(qty);
+  G('csp-prem').textContent='+$'+grossP.toFixed(2);
+  G('csp-btc').textContent='-$'+grossB.toFixed(2);
+  G('csp-net').innerHTML=fp(grossP-grossB-comm);
+  G('cs-preview').style.display='block';
+}
+
+function saveCloseShort(){
+  var pos=getP(activeId);if(!pos||!activeShortLegId){G('cs-err').textContent='Error.';return;}
+  var sl=(pos.shortLegs||[]).find(function(x){return x.id===activeShortLegId;});if(!sl)return;
+  var qty=parseFloat(sl.qty)||1,prem=parseFloat(sl.premPerShare)||0;
+  var pnl=0;
+  if(shortCloseTabActive==='exp'){
+    var d=vv('cs-exp-dt');if(!d){G('cs-err').textContent='Enter date.';return;}
+    sl.status='expired';sl.closeDate=d;
+    pnl=prem*qty*100-openComm(qty)-cfg.ef;
+  } else {
+    var btc=parseFloat(vv('cs-btc-p'));var d2=vv('cs-btc-dt');
+    if(!btc||btc<0){G('cs-err').textContent='Enter buyback price.';return;}
+    if(!d2){G('cs-err').textContent='Enter date.';return;}
+    sl.status='btc';sl.btcPrice=btc;sl.closeDate=d2;
+    pnl=(prem-btc)*qty*100-openComm(qty)-closeComm(qty);
+  }
+  save();closeM('m-close-short');
+  if(pnl>0) setTimeout(function(){triggerCelebration(pnl);},200);
+  else renderDetail();
+}
+
+function openRollShort(legId){
+  var pos=getP(activeId);if(!pos)return;
+  var sl=(pos.shortLegs||[]).find(function(x){return x.id===legId;});if(!sl)return;
+  activeShortLegId=legId;
+  G('rs-btc').value='';G('rs-date').value=today();
+  G('rs-type').value=sl.optType||'Call';
+  G('rs-strike').value='';G('rs-exp').value='';G('rs-qty').value=sl.qty||1;G('rs-prem').value='';
+  G('rs-preview').style.display='none';G('rs-err').textContent='';
+  G('rs-info').textContent='Current: $'+parseFloat(sl.strike).toFixed(2)+' '+sl.optType+' exp '+sl.expiry+' · $'+parseFloat(sl.premPerShare).toFixed(2)+'/sh';
+  openM('m-roll-short');
+}
+
+function previewRS(){
+  var pos=getP(activeId);if(!pos||!activeShortLegId)return;
+  var sl=(pos.shortLegs||[]).find(function(x){return x.id===activeShortLegId;});if(!sl)return;
+  var btc=parseFloat(vv('rs-btc'))||0,newPrem=parseFloat(vv('rs-prem'))||0;
+  var qty=parseFloat(sl.qty)||1,origPrem=parseFloat(sl.premPerShare)||0;
+  var newQty=parseFloat(vv('rs-qty'))||1;
+  if(!btc&&!newPrem)return;
+  var grossOrig=origPrem*qty*100,grossBtc=btc*qty*100,comm=openComm(qty)+closeComm(qty);
+  var realized=grossOrig-grossBtc-comm;
+  G('rsp-orig').textContent='+$'+grossOrig.toFixed(2);
+  G('rsp-btc').textContent='-$'+grossBtc.toFixed(2);
+  G('rsp-comm').textContent='-$'+comm.toFixed(2);
+  G('rsp-realized').innerHTML=fp(realized);
+  G('rsp-newprem').textContent=newPrem?'+$'+(newPrem*newQty*100).toFixed(2):'—';
+  G('rs-preview').style.display='block';
+}
+
+function saveRollShort(){
+  var pos=getP(activeId);if(!pos||!activeShortLegId){G('rs-err').textContent='Error.';return;}
+  var sl=(pos.shortLegs||[]).find(function(x){return x.id===activeShortLegId;});if(!sl)return;
+  var btc=parseFloat(vv('rs-btc')),date=vv('rs-date'),newType=vv('rs-type'),
+      newStrike=parseFloat(vv('rs-strike')),newExp=vv('rs-exp'),
+      newQty=parseFloat(vv('rs-qty'))||1,newPrem=parseFloat(vv('rs-prem'));
+  if(!btc||btc<0){G('rs-err').textContent='Enter buyback price (0 if free to close).';return;}
+  if(!date){G('rs-err').textContent='Enter date.';return;}
+  if(!newStrike||newStrike<=0){G('rs-err').textContent='Enter new strike.';return;}
+  if(!newExp){G('rs-err').textContent='Enter new expiry.';return;}
+  if(!newPrem||newPrem<=0){G('rs-err').textContent='Enter new premium.';return;}
+  // Close current leg as rolled
+  sl.status='rolled';sl.btcPrice=btc;sl.closeDate=date;
+  var qty=parseFloat(sl.qty)||1,origPrem=parseFloat(sl.premPerShare)||0;
+  var realizedPnL=(origPrem-btc)*qty*100-openComm(qty)-closeComm(qty);
+  // Open new short leg
+  pos.shortLegs.push({id:uid(),dateSold:date,optType:newType,strike:newStrike,expiry:newExp,
+    qty:newQty,premPerShare:newPrem,btcPrice:null,closeDate:null,status:'open'});
+  save();closeM('m-roll-short');
+  if(realizedPnL>0) setTimeout(function(){triggerCelebration(realizedPnL);},200);
+  else renderDetail();
+}
+
 var scSort = 'pnl'; // 'pnl' or 'wr'
 
 function setSCSort(s){
@@ -3198,6 +3657,19 @@ function renderScorecard(){
   G('sc-year-lbl').textContent='Year '+thisYear;
   G('sc-month').innerHTML=closed.length?fp(monthPnL):'<span class="mu">—</span>';
   G('sc-year').innerHTML=closed.length?fp(yearPnL):'<span class="mu">—</span>';
+
+  // Open-position collected premium (rolls/closes banked while position is still open)
+  var openCollected=0;
+  positions.forEach(function(pos){
+    if(pos.type==='chain'&&!chainStats(pos).isClosed){
+      (pos.events||[]).forEach(function(ev){
+        if(ev.eventType!=='open') openCollected+=ev.netCash||0;
+      });
+    }
+  });
+  var allSettledTotal=scEvs.reduce(function(a,e){return a+(e.pnl||0);},0);
+  G('sc-open-collected').innerHTML=openCollected!==0?fp(openCollected):'<span class="mu">—</span>';
+  G('sc-grand-total').innerHTML=fp(allSettledTotal);
 
   // Build strategy stats with yearly breakdown
   var byStrat={};
@@ -3673,6 +4145,249 @@ showV=function(name){
   if(name==='v-history') setTimeout(function(){renderHistory();},0);
 
 };
+
+/* ============================================================
+   TRADESTATION FETCH
+   ============================================================ */
+
+var TS_CREDS_KEY = 'ot_ts_creds_v1';
+
+function tsApiBase(){
+  var port = parseInt(localStorage.getItem('ot_ts_port_v1') || '8765');
+  return 'http://localhost:' + port;
+}
+
+function loadTSCredsUI(){
+  try{
+    var raw = localStorage.getItem(TS_CREDS_KEY);
+    var c = raw ? JSON.parse(raw) : {};
+    if(G('ts-client-id'))     G('ts-client-id').value     = c.client_id     || '';
+    if(G('ts-client-secret')) G('ts-client-secret').value = c.client_secret || '';
+    if(G('ts-days'))          G('ts-days').value           = c.days          || 90;
+    if(G('ts-port'))          G('ts-port').value           = c.port          || 8765;
+  }catch(e){}
+}
+
+function saveTSCreds(){
+  var creds = {
+    client_id:     G('ts-client-id').value.trim(),
+    client_secret: G('ts-client-secret').value.trim(),
+    days:          parseInt(G('ts-days').value) || 90,
+    port:          parseInt(G('ts-port').value) || 8765,
+  };
+  localStorage.setItem(TS_CREDS_KEY, JSON.stringify(creds));
+  localStorage.setItem('ot_ts_port_v1', String(creds.port));
+  var ok = G('ts-creds-ok');
+  ok.style.display = 'inline';
+  setTimeout(function(){ ok.style.display = 'none'; }, 2000);
+}
+
+function _tsSetStatus(color, msg, showReauth){
+  var dot = G('ts-status-dot');
+  var txt = G('ts-status-msg');
+  var btn = G('ts-reauth-btn');
+  if(dot) dot.style.background = color;
+  if(txt) txt.textContent = msg;
+  if(btn) btn.style.display = showReauth ? '' : 'none';
+}
+
+function _tsShow(id){
+  ['ts-loading','ts-empty','ts-fills-wrap','ts-error','ts-not-running'].forEach(function(i){
+    var el = G(i);
+    if(el) el.style.display = (i === id) ? '' : 'none';
+  });
+}
+
+function openTSFetch(){
+  openM('m-ts-fetch');
+  _tsShow(null);
+  _tsSetStatus('var(--yellow)', 'Checking server…', false);
+
+  fetch(tsApiBase() + '/status', {signal: AbortSignal.timeout(3000)})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d.authenticated){
+        _tsSetStatus('var(--yellow)', 'Not authenticated — click Re-authenticate', true);
+        return;
+      }
+      _tsSetStatus('var(--green)', 'Connected — account ' + (d.account || ''), false);
+      _tsFetchFills();
+    })
+    .catch(function(){
+      _tsSetStatus('var(--red)', 'Server not running', false);
+      _tsShow('ts-not-running');
+    });
+}
+
+function tsReAuth(){
+  _tsSetStatus('var(--yellow)', 'Opening browser for login…', false);
+  fetch(tsApiBase() + '/auth', {signal: AbortSignal.timeout(120000)})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d.ok){ _tsShowError(d.error || 'Auth failed'); return; }
+      _tsSetStatus('var(--green)', 'Authenticated — account ' + (d.account || ''), false);
+      _tsFetchFills();
+    })
+    .catch(function(e){
+      _tsSetStatus('var(--red)', 'Auth failed', true);
+      _tsShowError('Could not reach server. Is it running?');
+    });
+}
+
+function _tsFetchFills(){
+  var raw = localStorage.getItem(TS_CREDS_KEY);
+  var days = raw ? (JSON.parse(raw).days || 90) : 90;
+  _tsShow('ts-loading');
+  fetch(tsApiBase() + '/fetch?days=' + days, {signal: AbortSignal.timeout(30000)})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d.ok){ _tsShowError(d.error || 'Fetch failed'); return; }
+      if(!d.fills || d.fills.length === 0){ _tsShow('ts-empty'); return; }
+      _tsRenderFills(d.fills);
+    })
+    .catch(function(e){
+      _tsShowError('Fetch timed out or server stopped.');
+    });
+}
+
+function _tsShowError(msg){
+  var el = G('ts-error');
+  if(el){ el.textContent = msg; }
+  _tsShow('ts-error');
+}
+
+var _tsFills = [];
+
+function _tsRenderFills(fills){
+  _tsFills = fills;
+  var list = G('ts-fills-list');
+  list.innerHTML = '';
+
+  fills.forEach(function(fill, idx){
+    var open_legs = fill.legs.filter(function(l){ return l.is_open; });
+    var close_legs = fill.legs.filter(function(l){ return !l.is_open; });
+    var isClose = open_legs.length === 0;
+    var ticker = fill.legs[0] ? fill.legs[0].underlying : '?';
+    var date   = fill.filled_at ? fill.filled_at.slice(0,10) : '?';
+    var sugg   = fill.suggested_strategy || 'Custom';
+
+    var net = 0;
+    fill.legs.forEach(function(l){
+      var sign = (l.action === 'STO' || l.action === 'STC') ? 1 : -1;
+      net += sign * l.price * l.qty * 100;
+    });
+    var netStr = (net >= 0 ? '+' : '') + '$' + Math.abs(net).toFixed(2);
+    var netColor = net >= 0 ? 'var(--green)' : 'var(--red)';
+
+    var legsHtml = fill.legs.map(function(l){
+      var ac = (l.action==='STO'||l.action==='STC') ? 'var(--green)' : 'var(--red)';
+      return '<tr>' +
+        '<td style="font-weight:700;color:'+ac+';padding:2px 8px 2px 0">'+l.action+'</td>' +
+        '<td style="padding:2px 8px 2px 0">'+l.opt_type+'</td>' +
+        '<td style="padding:2px 8px 2px 0">$'+parseFloat(l.strike).toFixed(2)+'</td>' +
+        '<td style="padding:2px 8px 2px 0">'+l.expiry+'</td>' +
+        '<td style="padding:2px 8px 2px 0">x'+l.qty+'</td>' +
+        '<td style="text-align:right;padding:2px 0">$'+parseFloat(l.price).toFixed(2)+'/sh</td>' +
+        '</tr>';
+    }).join('');
+
+    // For close fills, build a position-match select
+    var closeMatchHtml = '';
+    if(isClose){
+      var openChains = positions.filter(function(p){ return p.type==='chain' && !p.closed; });
+      var opts = '<option value="">-- skip --</option>';
+      openChains.forEach(function(p){
+        opts += '<option value="'+p.id+'">'+p.ticker+' — '+p.strategy+' ('+p.openDate+')</option>';
+      });
+      closeMatchHtml = '<div style="margin-top:8px;font-size:12px;color:var(--txt2)">Match to open position:</div>' +
+        '<select id="ts-match-'+idx+'" style="font-size:12px;padding:5px 8px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt);width:100%;margin-top:4px">'+opts+'</select>';
+    }
+
+    // Strategy select for opens
+    var stratHtml = '';
+    if(!isClose){
+      var sopts = strategies.map(function(s){
+        return '<option value="'+s+'"'+(s===sugg?' selected':'')+'>'+s+'</option>';
+      }).join('');
+      stratHtml = '<div style="display:flex;align-items:center;gap:8px;margin-top:8px">' +
+        '<label style="font-size:12px;color:var(--txt2);white-space:nowrap">Strategy:</label>' +
+        '<select id="ts-strat-'+idx+'" style="font-size:12px;padding:5px 8px;border-radius:var(--rs);border:1px solid var(--border);background:var(--bg);color:var(--txt);flex:1">'+sopts+'</select>' +
+        '</div>';
+    }
+
+    var pill = isClose
+      ? '<span class="pill p-closed" style="font-size:10px">CLOSE</span>'
+      : '<span class="pill p-open" style="font-size:10px">OPEN</span>';
+
+    var card = document.createElement('div');
+    card.style.cssText = 'border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;margin-bottom:8px;background:var(--bg)';
+    card.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
+        '<div style="display:flex;align-items:center;gap:7px">' +
+          '<input type="checkbox" id="ts-chk-'+idx+'" checked style="width:15px;height:15px;cursor:pointer">' +
+          '<span style="font-size:16px;font-weight:800">'+ticker+'</span>' +
+          pill +
+        '</div>' +
+        '<div style="font-size:12px;color:var(--txt2)">'+date+'&nbsp;&nbsp;<span style="font-weight:700;color:'+netColor+'">'+netStr+'</span></div>' +
+      '</div>' +
+      '<table style="font-size:12px;border-collapse:collapse;width:100%">'+legsHtml+'</table>' +
+      stratHtml + closeMatchHtml;
+
+    list.appendChild(card);
+  });
+
+  _tsShow('ts-fills-wrap');
+}
+
+function tsConfirmImport(){
+  var opens = [];
+  var closes = [];
+  var skips = [];
+
+  _tsFills.forEach(function(fill, idx){
+    var chk = G('ts-chk-'+idx);
+    if(!chk || !chk.checked){ skips.push(fill.order_id); return; }
+
+    var open_legs = fill.legs.filter(function(l){ return l.is_open; });
+    var isClose = open_legs.length === 0;
+
+    if(isClose){
+      var sel = G('ts-match-'+idx);
+      closes.push({ fill: fill, position_id: sel ? sel.value : '' });
+    } else {
+      var stratSel = G('ts-strat-'+idx);
+      opens.push({ fill: fill, strategy: stratSel ? stratSel.value : fill.suggested_strategy });
+    }
+  });
+
+  var btn = G('ts-import-btn');
+  if(btn) btn.disabled = true;
+
+  fetch(tsApiBase() + '/confirm', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({opens: opens, closes: closes}),
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if(!d.ok){ _tsShowError(d.error || 'Import failed'); if(btn) btn.disabled=false; return; }
+    // Also mark unchecked as skipped
+    if(skips.length){
+      fetch(tsApiBase() + '/skip', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({order_ids: skips}),
+      });
+    }
+    closeM('m-ts-fetch');
+    if(btn) btn.disabled = false;
+    // Firebase will push the update back automatically via the listener
+  })
+  .catch(function(e){
+    _tsShowError('Import request failed. Is the server still running?');
+    if(btn) btn.disabled = false;
+  });
+}
 
 /* ============================================================
    INIT
