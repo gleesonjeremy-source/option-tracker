@@ -227,6 +227,11 @@ body.force-light{
 @media(max-width:500px){
   .form-row{flex-direction:column;}
 }
+@media(max-width:600px){
+  .trow-5{grid-template-columns:minmax(0,1fr) 70px minmax(0,1fr) 52px}
+  .trow-5 .col-date{display:none}
+  .trow-5 .col-result{display:none}
+}
 </style>
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -1979,7 +1984,7 @@ function renderCCDetail(pos){
   if(!pos.calls.length){
     h+='<div class="empty">No calls logged yet</div>';
   } else {
-    h+='<div class="trow trow-5 thdr"><span>Date sold</span><span>Strike / Expiry</span><span>Premium</span><span>Result</span><span style="text-align:right">Net PnL</span><span></span></div>'+
+    h+='<div class="trow trow-5 thdr"><span class="col-date">Date sold</span><span>Strike / Expiry</span><span>Premium</span><span class="col-result">Result</span><span style="text-align:right">Net PnL</span><span></span></div>'+
     '<div class="scroll-box">'+
     pos.calls.slice().reverse().map(function(c){
       var qty=parseFloat(c.qty)||1,prem=parseFloat(c.premPerShare)||0;
@@ -1991,10 +1996,10 @@ function renderCCDetail(pos){
       else if(c.status==='rolled'){badge='<span class="pill p-rolled">Rolled</span>';result='BTC $'+btc.toFixed(2)+'/sh';cc2=closeComm(qty);net=grossP-grossB-oc2-cc2;}
       else if(c.status==='assigned'){badge='<span class="pill p-asgn">Assigned</span>';result='Assigned @ $'+parseFloat(c.strike).toFixed(2);cc2=cfg.af;net=grossP-oc2-cc2;}
       return '<div class="trow trow-5">'+
-        '<span style="font-size:12px">'+c.dateSold+'</span>'+
+        '<span class="col-date" style="font-size:12px">'+c.dateSold+'</span>'+
         '<span><strong>$'+parseFloat(c.strike).toFixed(2)+'</strong><br><span style="font-size:11px;color:var(--txt2)">'+c.expiry+'</span></span>'+
         '<span>$'+prem.toFixed(2)+'/sh<br><span style="font-size:11px;color:var(--txt2)">$'+grossP.toFixed(2)+' total</span></span>'+
-        '<span>'+badge+'<br><span style="font-size:11px;color:var(--txt2)">'+result+'</span></span>'+
+        '<span class="col-result">'+badge+'<br><span style="font-size:11px;color:var(--txt2)">'+result+'</span></span>'+
         '<span style="text-align:right;font-weight:700">'+(net!==null?fp(net):'<span class="mu">Open</span>')+'</span>'+
         '<span><button class="btn btn-sm" style="font-size:11px;padding:2px 7px" data-callid="'+c.id+'" onclick="event.stopPropagation();openEditCall(this.dataset.callid)">Edit</button></span>'+
       '</div>';
