@@ -1,5 +1,4 @@
 
-
 <!DOCTYPE html>
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
@@ -1185,7 +1184,19 @@ body.force-light{
    FIREBASE CONFIG & SYNC
    ============================================================ */
 var FIREBASE_URL = 'https://option-tracker-a004d-default-rtdb.firebaseio.com';
-var FIREBASE_PATH = '/userdata';
+/* DB lock 2026-07-23: the database denies all root access; the book lives under
+   an unguessable path /p_<key>/userdata. The key is pasted ONCE per device and
+   kept in localStorage — it never appears in this public file. */
+var FBKEY_STORE = 'ot_fbkey_v1';
+var FB_KEY = (localStorage.getItem(FBKEY_STORE) || '').trim();
+var FIREBASE_PATH = FB_KEY ? '/p_' + FB_KEY + '/userdata' : '/userdata';
+function promptFbKey(msg){
+  var k = prompt((msg || 'One-time setup') + '\n\nPaste your database key (from the option-tracker .env on the laptop, FB_PATH_KEY=…):');
+  if(k && k.trim()){
+    localStorage.setItem(FBKEY_STORE, k.trim());
+    location.reload();
+  }
+}
 var db = null;
 var syncTimeout = null;
 var lastSyncHash = null;
@@ -1234,7 +1245,12 @@ function initFirebase(){
         setSyncStatus('err','Load error');
       }
     }, function(err){
-      setSyncStatus('err','Offline');
+      if(String(err && err.code || err).toUpperCase().indexOf('PERMISSION_DENIED') > -1){
+        setSyncStatus('err','Locked');
+        promptFbKey(FB_KEY ? 'That key was not accepted — check for typos.' : 'This tracker is locked.');
+      } else {
+        setSyncStatus('err','Offline');
+      }
     });
   } catch(e){
     console.log('Firebase error:', e);
@@ -1263,7 +1279,12 @@ function syncToCloud(){
       lastSyncHash = hash;
       setSyncStatus('ok','Synced');
     }).catch(function(err){
-      setSyncStatus('err','Sync failed');
+      if(String(err && err.code || err).toUpperCase().indexOf('PERMISSION_DENIED') > -1){
+        setSyncStatus('err','Locked');
+        promptFbKey(FB_KEY ? 'That key was not accepted — check for typos.' : 'This tracker is locked.');
+      } else {
+        setSyncStatus('err','Sync failed');
+      }
     });
   }, 800); // debounce 800ms so rapid changes batch together
 }
@@ -4400,6 +4421,7 @@ showV=function(name){
 load();
 applyTheme();
 renderHome();
+if(!FB_KEY){ promptFbKey('This tracker is locked.'); }
 initFirebase();
 </script>
 
