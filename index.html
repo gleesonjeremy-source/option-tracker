@@ -4265,11 +4265,16 @@ function saveCloseChain(){
   var note=G('clch-note').value;
   if(!date){G('clch-err').textContent='Enter a date.';return;}
   var net=recv-paid;
+  // Campaign-cash law: netCash = credits − debits − commissions (same convention
+  // as the roll dialog). Expiry costs nothing; sell/buy closes estimate at
+  // closeComm over the legs being closed (imports carry the REAL fee instead).
+  var closeQty=(pos.openLegs||[]).reduce(function(a,l){return a+(parseFloat(l&&l.qty)||1);},0)||1;
+  var comm=clchTabMode==='exp'?0:closeComm(closeQty);
   var detail=clchTabMode==='exp'?'Expired worthless':
     clchTabMode==='sell'?'Sold to close — received $'+recv.toFixed(2):
     'Bought to close — paid $'+paid.toFixed(2);
   var ev={id:uid(),date:date,note:note||detail,eventType:'close',
-    netCash:net,credits:recv,debits:paid,commissions:0,
+    netCash:net-comm,credits:recv,debits:paid,commissions:comm,
     detail:detail,closed:true};
   if(!pos.events) pos.events=[];
   pos.events.push(ev);
