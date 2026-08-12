@@ -264,6 +264,8 @@ body.force-light{
     <div class="met"><div class="met-lbl">Win rate</div><div class="met-val" id="hd-wr">—</div><div class="met-sub">Every settled outcome — campaigns + calls</div></div>
     <div class="met"><div class="met-lbl">CC premiums banked</div><div class="met-val" id="hd-prem"><span class="mu">—</span></div><div class="met-sub">Settled CC calls only, net after buybacks</div></div>
     <div class="met"><div class="met-lbl">Commissions</div><div class="met-val" id="hd-comm"><span class="mu">—</span></div><div class="met-sub">Total paid</div></div>
+    <div class="met"><div class="met-lbl">Profit factor</div><div class="met-val" id="hd-pf"><span class="mu">—</span></div><div class="met-sub">Gross wins ÷ gross losses, settled outcomes</div></div>
+    <div class="met"><div class="met-lbl">Realized R:R</div><div class="met-val" id="hd-rr"><span class="mu">—</span></div><div class="met-sub" id="hd-rr-sub">Avg win vs avg loss</div></div>
   </div>
 
   <div class="section-lbl">Open positions</div>
@@ -1898,10 +1900,11 @@ function renderHome(){
   // closed campaigns + settled CC/defense calls + share sales. Mid-flight cash
   // management on open chains (roll/adj/leg-close) is not an outcome — excluded.
   var OPEN_MGMT={'Roll (open pos)':1,'Adj (open pos)':1,'Leg closed (open pos)':1};
-  var wins=0,losses=0;
+  var wins=0,losses=0,grossWin=0,grossLoss=0;
   allEvents.forEach(function(e){
     if(OPEN_MGMT[e.type])return;
-    if((e.pnl||0)>=0)wins++;else losses++;
+    var p=e.pnl||0;
+    if(p>=0){wins++;grossWin+=p;}else{losses++;grossLoss+=-p;}
   });
   var hasAnySettled=allEvents.length>0;
   var tot=wins+losses;
@@ -1911,6 +1914,20 @@ function renderHome(){
   G('hd-wr').textContent=tot>0?Math.round(wins/tot*100)+'% ('+wins+'W/'+losses+'L)':'—';
   G('hd-prem').innerHTML=totalClosedPrem!==0?fp(totalClosedPrem):'<span class="mu">—</span>';
   G('hd-comm').innerHTML=totalComm>0?'<span class="red">'+fmt(-totalComm)+'</span>':'<span class="mu">—</span>';
+  // Profit factor + realized R:R — same settled-outcome set as the win rate
+  if(grossLoss>0){
+    var pf=grossWin/grossLoss;
+    G('hd-pf').innerHTML='<span class="'+(pf>=1.3?'green':(pf>=1?'':'red'))+'">'+pf.toFixed(2)+'&times;</span>';
+  } else {
+    G('hd-pf').innerHTML=grossWin>0?'<span class="green">&infin;</span>':'<span class="mu">—</span>';
+  }
+  if(wins>0&&losses>0){
+    var avgW=grossWin/wins,avgL=grossLoss/losses;
+    G('hd-rr').textContent=(avgW/avgL).toFixed(2)+' : 1';
+    G('hd-rr-sub').textContent='Avg win $'+Math.round(avgW)+' vs avg loss $'+Math.round(avgL);
+  } else {
+    G('hd-rr').innerHTML='<span class="mu">—</span>';
+  }
 
   var open=[];
   positions.forEach(function(pos){
