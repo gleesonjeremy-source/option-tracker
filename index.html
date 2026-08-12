@@ -261,8 +261,8 @@ body.force-light{
     <div class="met"><div class="met-lbl">This month</div><div class="met-val" id="hd-month"><span class="mu">—</span></div><div class="met-sub">Closed P&L</div></div>
   </div>
   <div class="mg g3" style="margin-bottom:16px">
-    <div class="met"><div class="met-lbl">Win rate</div><div class="met-val" id="hd-wr">—</div><div class="met-sub">Closed positions</div></div>
-    <div class="met"><div class="met-lbl">Closed premiums</div><div class="met-val" id="hd-prem"><span class="mu">—</span></div><div class="met-sub">Net after buybacks</div></div>
+    <div class="met"><div class="met-lbl">Win rate</div><div class="met-val" id="hd-wr">—</div><div class="met-sub">Every settled outcome — campaigns + calls</div></div>
+    <div class="met"><div class="met-lbl">CC premiums banked</div><div class="met-val" id="hd-prem"><span class="mu">—</span></div><div class="met-sub">Settled CC calls only, net after buybacks</div></div>
     <div class="met"><div class="met-lbl">Commissions</div><div class="met-val" id="hd-comm"><span class="mu">—</span></div><div class="met-sub">Total paid</div></div>
   </div>
 
@@ -1863,7 +1863,7 @@ function showV(name){
   if(name==='v-home') renderHome();
   if(name==='v-scorecard'){renderScorecard();}
   if(name==='v-history'){renderHistory();}
-  if(name==='v-settings'){G('s-pc').value=cfg.pc;G('s-af').value=cfg.af;G('s-ef').value=cfg.ef;renderStratList();populateHistoryFilters();}
+  if(name==='v-settings'){G('s-pc').value=cfg.pc;G('s-af').value=cfg.af;G('s-ef').value=cfg.ef;renderStratList();}
 }
 
 /* ============================================================
@@ -1886,22 +1886,29 @@ function renderHome(){
     return e.date&&e.date.substring(0,7)===thisMonth;
   }).reduce(function(a,e){return a+(e.pnl||0);},0);
 
-  var wins=0,losses=0,totalComm=0,totalClosedPrem=0;
+  var totalComm=0,totalClosedPrem=0;
   positions.forEach(function(pos){
     if(pos.type==='cc'){
       var s=ccStats(pos);totalComm+=s.totalComm;totalClosedPrem+=s.closedOptionsNet||0;
-      if(s.isClosed){if((s.closedPnL||0)>=0)wins++;else losses++;}
     } else {
       var s2=chainStats(pos);totalComm+=s2.totalComm;
-      if(s2.isClosed){if((s2.finalPnL||0)>=0)wins++;else losses++;}
     }
+  });
+  // Win rate counts every SETTLED OUTCOME ("win is a win" — Jeremy 2026-08-11):
+  // closed campaigns + settled CC/defense calls + share sales. Mid-flight cash
+  // management on open chains (roll/adj/leg-close) is not an outcome — excluded.
+  var OPEN_MGMT={'Roll (open pos)':1,'Adj (open pos)':1,'Leg closed (open pos)':1};
+  var wins=0,losses=0;
+  allEvents.forEach(function(e){
+    if(OPEN_MGMT[e.type])return;
+    if((e.pnl||0)>=0)wins++;else losses++;
   });
   var hasAnySettled=allEvents.length>0;
   var tot=wins+losses;
   G('hd-total').innerHTML=hasAnySettled?fp(totalClosedPnL):'<span class="mu">—</span>';
   G('hd-week').innerHTML=weekPnL!==0?fp(weekPnL):'<span class="mu">—</span>';
   G('hd-month').innerHTML=monthPnL!==0?fp(monthPnL):'<span class="mu">—</span>';
-  G('hd-wr').textContent=tot>0?Math.round(wins/tot*100)+'%':'—';
+  G('hd-wr').textContent=tot>0?Math.round(wins/tot*100)+'% ('+wins+'W/'+losses+'L)':'—';
   G('hd-prem').innerHTML=totalClosedPrem!==0?fp(totalClosedPrem):'<span class="mu">—</span>';
   G('hd-comm').innerHTML=totalComm>0?'<span class="red">'+fmt(-totalComm)+'</span>':'<span class="mu">—</span>';
 
@@ -2517,28 +2524,9 @@ function deleteStrategy(name){
   strategies=strategies.filter(function(s){return s!==name;});
   save();renderStratList();
 }
-function populateHistoryFilters(){
-  // Only closed positions
-  var closed=positions.filter(function(p){
-    return p.type==='cc'?ccStats(p).isClosed:chainStats(p).isClosed;
-  });
-  // Years from close date
-  var years={};
-  closed.forEach(function(p){
-    var yr=getCloseYear(p);
-    if(yr)years[yr]=1;
-  });
-  var hy=G('hist-year');if(!hy)return;
-  hy.innerHTML='<option value="">All years</option>'+Object.keys(years).sort().reverse().map(function(y){return '<option>'+y+'</option>';}).join('');
-  // Strategy types from closed positions
-  var strats={};
-  closed.forEach(function(p){
-    var s=p.type==='cc'?'Covered call':p.strategy;
-    if(s)strats[s]=1;
-  });
-  var hs=G('hist-type');if(!hs)return;
-  hs.innerHTML='<option value="">All strategies</option>'+Object.keys(strats).sort().map(function(s){return '<option>'+s+'</option>';}).join('');
-}
+/* populateHistoryFilters removed 2026-08-11 — it repopulated the History dropdowns
+   from the SETTINGS view with closed-position strategy names, a vocabulary the
+   Events-tab filter never matches. renderHistory owns the dropdowns now. */
 
 function getCloseDate(pos){
   if(pos.type==='cc'){
@@ -2576,16 +2564,27 @@ function histTab(t){
 function renderHistory(){
   try{
     var allEv=calcAllSettledEvents();
-    // Year filter options
+    // Year filter options — preserve the user's selection across the repopulate
+    // (innerHTML resets the select, which made every filter snap back to "All")
     var years={};
     allEv.forEach(function(e){var yr=(e.date||'').substring(0,4);if(yr)years[yr]=1;});
     var hy=G('hist-year');
-    if(hy)hy.innerHTML='<option value="">All years</option>'+Object.keys(years).sort().reverse().map(function(y){return '<option>'+y+'</option>';}).join('');
-    // Type filter options
+    if(hy){
+      var prevYr=hy.value;
+      hy.innerHTML='<option value="">All years</option>'+Object.keys(years).sort().reverse().map(function(y){return '<option>'+y+'</option>';}).join('');
+      hy.value=prevYr;
+      if(hy.selectedIndex<0)hy.value='';
+    }
+    // Type filter options — same selection-preserving repopulate
     var types={};
     allEv.forEach(function(e){if(e.type)types[e.type]=1;});
     var ht=G('hist-type');
-    if(ht)ht.innerHTML='<option value="">All types</option>'+Object.keys(types).sort().map(function(tp){return '<option>'+tp+'</option>';}).join('');
+    if(ht){
+      var prevTp=ht.value;
+      ht.innerHTML='<option value="">All types</option>'+Object.keys(types).sort().map(function(tp){return '<option>'+tp+'</option>';}).join('');
+      ht.value=prevTp;
+      if(ht.selectedIndex<0)ht.value='';
+    }
 
     var yrF=G('hist-year')?G('hist-year').value:'';
     var typeF=G('hist-type')?G('hist-type').value:'';
