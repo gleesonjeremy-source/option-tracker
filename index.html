@@ -268,6 +268,15 @@ body.force-light{
     <div class="met"><div class="met-lbl">Realized R:R</div><div class="met-val" id="hd-rr"><span class="mu">—</span></div><div class="met-sub" id="hd-rr-sub">Goal ≥1.0:1</div></div>
   </div>
 
+  <!-- 💵 CASH RAIL (2026-08-23): rendered from the generator-owned
+       /cashData node (mini evening pass · scanner/cash_snapshot.py).
+       Hidden until the node exists. Floor 15% = hypothesis pending (g). -->
+  <div class="mg g3" id="cash-rail" style="display:none;margin-bottom:16px">
+    <div class="met"><div class="met-lbl">💵 Cash on hand</div><div class="met-val" id="cr-cash"><span class="mu">—</span></div><div class="met-sub" id="cr-asof">from TradeStation</div></div>
+    <div class="met"><div class="met-lbl">Should have</div><div class="met-val" id="cr-should"><span class="mu">—</span></div><div class="met-sub" id="cr-detail">CSP reserve + cash floor</div></div>
+    <div class="met"><div class="met-lbl">Cash status</div><div class="met-val" id="cr-status">—</div><div class="met-sub" id="cr-surplus">surplus / deficit</div></div>
+  </div>
+
   <div class="section-lbl">Open positions</div>
   <div id="list-open"><div class="empty">No open positions</div></div>
 
@@ -1203,6 +1212,27 @@ var db = null;
 var syncTimeout = null;
 var lastSyncHash = null;
 
+/* 💵 cash rail card — data written by scanner/cash_snapshot.py on the mini
+   evening pass; this page only renders (the Screen-never-computes law). */
+function renderCashRail(c){
+  var rail = document.getElementById('cash-rail');
+  if(!rail) return;
+  if(!c || typeof c.cash !== 'number'){ rail.style.display='none'; return; }
+  rail.style.display='';
+  var f = function(v){ return '$' + (v||0).toLocaleString(undefined,{maximumFractionDigits:0}); };
+  document.getElementById('cr-cash').textContent = f(c.cash);
+  document.getElementById('cr-asof').textContent = 'TradeStation · ' + (c.asof||'');
+  document.getElementById('cr-should').textContent = f(c.should_have);
+  document.getElementById('cr-detail').textContent =
+    'CSP ' + f(c.reserved_csp) + ' + floor ' + Math.round((c.floor_pct||0)*100) + '% ' + f(c.floor_amt);
+  var st = document.getElementById('cr-status');
+  var ok = c.status === 'OK';
+  st.textContent = ok ? 'OK' : 'LOW';
+  st.style.color = ok ? 'var(--green,#4caf50)' : 'var(--red,#ef5350)';
+  document.getElementById('cr-surplus').textContent =
+    (c.surplus >= 0 ? 'surplus ' : 'short ') + f(Math.abs(c.surplus));
+}
+
 function initFirebase(){
   try{
     var app = firebase.initializeApp({
@@ -1210,6 +1240,13 @@ function initFirebase(){
     });
     db = firebase.database(app);
     setSyncStatus('pending','Syncing...');
+
+    // 💵 cash rail (generator-owned /cashData node — mini evening pass)
+    if(FB_KEY){
+      db.ref('/p_' + FB_KEY + '/cashData').on('value', function(snap){
+        try{ renderCashRail(snap.val()); }catch(e){}
+      });
+    }
 
     // Listen for remote changes
     db.ref(FIREBASE_PATH).on('value', function(snapshot){
@@ -1512,6 +1549,16 @@ function sanitizePos(pos){
 
 function sanitizeAll(){
   positions = positions.map(sanitizePos).filter(Boolean);
+  /* 2026-08-23 vocabulary shim: session imports (update_tracker.py) used to
+     write CC call status 'closed' — a status every math site here ignores
+     (only btc/rolled debit buyback cash), which overstated campaigns ~$1,723.
+     Normalize in memory so ALL consumers see 'btc'; saves/syncs converge the
+     stored data over time. The app's own flows never write 'closed'. */
+  positions.forEach(function(p){
+    [(p&&p.calls)||[], (p&&p.defense&&p.defense.calls)||[]].forEach(function(cs){
+      cs.forEach(function(c){ if(c && c.status==='closed') c.status='btc'; });
+    });
+  });
 }
 
 /* ============================================================
