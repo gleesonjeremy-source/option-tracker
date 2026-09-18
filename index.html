@@ -43,6 +43,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 .sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
 .sync-ok{background:var(--green)}.sync-err{background:var(--red)}.sync-pending{background:var(--yellow)}
 .sync-status{font-size:11px;color:var(--txt2);display:flex;align-items:center;gap:3px}
+.upd-txt{font-size:11px;color:var(--txt2);margin-left:6px;white-space:nowrap}
 .nav-left h1{font-size:19px;font-weight:800;color:var(--txt)}
 .nav-left .sub{font-size:12px;color:var(--txt2);margin-top:1px}
 .nav-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -244,7 +245,7 @@ body.force-light{
   <div class="nav">
     <div class="nav-left">
       <h1>Options Tracker</h1>
-      <div class="sub">True PNL &nbsp;<span class="sync-status" id="sync-status"><span class="sync-dot sync-pending" id="sync-dot"></span><span id="sync-txt">Connecting...</span></span></div>
+      <div class="sub">True PNL &nbsp;<span class="sync-status" id="sync-status"><span class="sync-dot sync-pending" id="sync-dot"></span><span id="sync-txt">Connecting...</span></span><span class="upd-txt" id="upd-txt"></span></div>
     </div>
     <div class="nav-right">
       <button class="btn btn-sm" onclick="showV('v-scorecard')">Scorecard</button>
@@ -1258,6 +1259,13 @@ function initFirebase(){
           setSyncStatus('ok','Synced');
           return;
         }
+        // 🕐 LAST-UPDATED stamp (Jeremy Fri 09-18: "it doesnt show last update"):
+        // every writer (app · session · machine · marks) leaves meta.updated +
+        // meta.by. Rendered, then stripped BEFORE hashing, so a stamp alone can
+        // never look like a change and loop a reload.
+        var meta = (data.meta && typeof data.meta === 'object') ? data.meta : null;
+        delete data.meta;
+        renderUpdated(meta);
         var remoteHash = JSON.stringify(data);
         if(remoteHash === lastSyncHash){
           setSyncStatus('ok','Synced');
@@ -1314,8 +1322,11 @@ function syncToCloud(){
       setSyncStatus('ok','Synced');
       return;
     }
+    var meta = {updated: new Date().toISOString(), by: 'app'};
+    data.meta = meta;   // stamped AFTER hashing — the hash never carries it
     db.ref(FIREBASE_PATH).set(data).then(function(){
       lastSyncHash = hash;
+      renderUpdated(meta);
       setSyncStatus('ok','Synced');
     }).catch(function(err){
       if(String(err && err.code || err).toUpperCase().indexOf('PERMISSION_DENIED') > -1){
@@ -1334,6 +1345,18 @@ function setSyncStatus(state, msg){
   if(!dot||!txt) return;
   dot.className = 'sync-dot sync-'+state;
   txt.textContent = msg;
+}
+// 🕐 "updated Sep 18 3:52 PM PT · machine" — the book's last write, by whom.
+// Times shown in PT (Jeremy's one-clock ruling 08-20); the raw ISO rides the tooltip.
+function renderUpdated(meta){
+  var el = document.getElementById('upd-txt');
+  if(!el) return;
+  if(!meta || !meta.updated){ el.textContent=''; el.title=''; return; }
+  var d = new Date(meta.updated);
+  if(isNaN(d.getTime())){ el.textContent=''; el.title=''; return; }
+  var when = d.toLocaleString('en-US',{timeZone:'America/Los_Angeles',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  el.textContent = '· updated ' + when + ' PT' + (meta.by ? ' · ' + meta.by : '');
+  el.title = meta.updated;
 }
 
 var PKEY='ot_positions_v1', CKEY='ot_cfg_v1', STRATKEY='ot_strategies_v1', SOUNDKEY='ot_sound_v1', DELKEY='ot_deleted_v1';
@@ -3510,7 +3533,7 @@ function clearAllData(){
   deletedEvents={};
   save();
   // Also clear Firebase
-  if(db){db.ref(FIREBASE_PATH).set({positions:[],settings:cfg,strategies:strategies,sound:celebSound,deletedEvents:{}});}
+  if(db){db.ref(FIREBASE_PATH).set({positions:[],settings:cfg,strategies:strategies,sound:celebSound,deletedEvents:{},meta:{updated:new Date().toISOString(),by:'app'}});}
   renderHome();
   showV('v-home');
 }
