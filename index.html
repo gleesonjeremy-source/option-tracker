@@ -269,6 +269,14 @@ body.force-light{
     <div class="met"><div class="met-lbl">Realized R:R</div><div class="met-val" id="hd-rr"><span class="mu">—</span></div><div class="met-sub" id="hd-rr-sub">Goal ≥1.0:1</div></div>
   </div>
 
+  <!-- 💵 DEPOSITS (2026-09-18): the human-owned ledger — one tap after you fund
+       the account; the machine mirrors it into flows each morning (True P&L,
+       the Score). TradeStation's API has no deposits endpoint. -->
+  <div class="mg g3" id="dep-rail" style="margin-bottom:16px">
+    <div class="met" style="cursor:pointer" onclick="showDeposits()"><div class="met-lbl">💵 Deposits <span id="dep-year"></span></div><div class="met-val" id="dep-ytd"><span class="mu">—</span></div><div class="met-sub" id="dep-sub">no deposits on record</div></div>
+    <div class="met" style="display:flex;flex-direction:column;justify-content:center;gap:6px"><button class="btn btn-sm btn-g" onclick="addDeposit()">+ deposit</button><div class="met-sub">tap once after you fund the account — growth and True P&amp;L subtract it</div></div>
+  </div>
+
   <!-- 💵 CASH RAIL (2026-08-23): rendered from the generator-owned
        /cashData node (mini evening pass · scanner/cash_snapshot.py).
        Hidden until the node exists. Floor 15% = hypothesis pending (g). -->
@@ -1277,6 +1285,7 @@ function initFirebase(){
         if(Array.isArray(data.strategies)) strategies = data.strategies;
         if(data.sound) celebSound = data.sound;
         if(data.deletedEvents && typeof data.deletedEvents==='object') deletedEvents=data.deletedEvents;
+        if(Array.isArray(data.deposits)) deposits=data.deposits;
         // Sanitize every position before rendering
         sanitizeAll();
         // Save to localStorage as backup
@@ -1284,6 +1293,7 @@ function initFirebase(){
         localStorage.setItem(CKEY, JSON.stringify(cfg));
         localStorage.setItem(STRATKEY, JSON.stringify(strategies));
         localStorage.setItem(SOUNDKEY, celebSound);
+        localStorage.setItem(DEPKEY, JSON.stringify(deposits));
         lastSyncHash = remoteHash;
         setSyncStatus('ok','Synced');
         renderHome();
@@ -1315,7 +1325,8 @@ function syncToCloud(){
       settings: cfg,
       strategies: strategies,
       sound: celebSound,
-      deletedEvents: deletedEvents
+      deletedEvents: deletedEvents,
+      deposits: deposits
     };
     var hash = JSON.stringify(data);
     if(hash === lastSyncHash){
@@ -1359,10 +1370,15 @@ function renderUpdated(meta){
   el.title = meta.updated;
 }
 
-var PKEY='ot_positions_v1', CKEY='ot_cfg_v1', STRATKEY='ot_strategies_v1', SOUNDKEY='ot_sound_v1', DELKEY='ot_deleted_v1';
+var PKEY='ot_positions_v1', CKEY='ot_cfg_v1', STRATKEY='ot_strategies_v1', SOUNDKEY='ot_sound_v1', DELKEY='ot_deleted_v1', DEPKEY='ot_deposits_v1';
 var DEF_CFG={pc:0.80,af:0,ef:0};
 var DEF_STRATEGIES=["Bear call spread", "Bear put spread", "Bull call spread", "Bull put spread", "Butterfly", "Broken wing butterfly", "Calendar spread", "Covered call (chain)", "Custom", "Diagonal spread", "Iron butterfly", "Iron condor", "Jade lizard", "Long call", "Long put", "PMCC", "Sell put (CSP)", "Strangle", "Straddle"];
 var positions=[], cfg=Object.assign({},DEF_CFG), strategies=DEF_STRATEGIES.slice(), celebSound='cha-ching', deletedEvents={};
+// 💵 DEPOSITS LEDGER (Fri 09-18, Jeremy: "how much cash deposited for the year… i just want it
+// simple, it shows on the dashboard"): human-owned list [{id, date, amount, note}] — the
+// "+ deposit" button is the ONE door; the machine mirrors it into equity_history flows every
+// morning (True P&L and the Score subtract it). TradeStation's API has no deposits endpoint.
+var deposits=[];
 var activeId=null, nchLegs=[], ceMode='roll', clchTabMode='exp';
 var activeShortLegId=null, shortCloseTabActive='exp';
 var pendingRS=null;
@@ -1387,6 +1403,11 @@ function load(){
     deletedEvents=rawDel?JSON.parse(rawDel):{};
     if(typeof deletedEvents!=='object'||Array.isArray(deletedEvents)) deletedEvents={};
   }catch(e){deletedEvents={};}
+  try{
+    var rawDep=localStorage.getItem(DEPKEY);
+    deposits=rawDep?JSON.parse(rawDep):[];
+    if(!Array.isArray(deposits)) deposits=[];
+  }catch(e){deposits=[];}
   sanitizeAll();
 }
 function save(){
@@ -1395,7 +1416,43 @@ function save(){
   localStorage.setItem(STRATKEY,JSON.stringify(strategies));
   localStorage.setItem(SOUNDKEY,celebSound);
   localStorage.setItem(DELKEY,JSON.stringify(deletedEvents));
+  localStorage.setItem(DEPKEY,JSON.stringify(deposits));
   syncToCloud(); // sync to Firebase
+}
+// 💵 deposits: render + the one-tap add
+function depositsYtd(){
+  var yr=String(new Date().getFullYear());
+  var rows=deposits.filter(function(d){return d&&String(d.date||'').slice(0,4)===yr&&isFinite(+d.amount);});
+  var tot=rows.reduce(function(s,d){return s+(+d.amount);},0);
+  var last=rows.map(function(d){return d.date;}).sort().pop()||null;
+  return {year:yr,total:tot,n:rows.length,last:last};
+}
+function renderDeposits(){
+  var el=document.getElementById('dep-ytd'), sub=document.getElementById('dep-sub'), y=document.getElementById('dep-year');
+  if(!el) return;
+  var d=depositsYtd();
+  if(y) y.textContent=d.year;
+  el.textContent=(d.total<0?'-':'')+'$'+Math.abs(d.total).toLocaleString(undefined,{maximumFractionDigits:0});
+  sub.textContent=d.n?(d.n+' deposit'+(d.n===1?'':'s')+(d.last?' · last '+d.last:'')+' · tap to list'):'no deposits on record';
+}
+function addDeposit(){
+  var a=prompt('Deposit amount (negative for a withdrawal):','');
+  if(a===null) return;
+  var amt=parseFloat(String(a).replace(/[$,\s]/g,''));
+  if(!isFinite(amt)||amt===0){alert('Enter a number, e.g. 500');return;}
+  var dt=prompt('Date (YYYY-MM-DD):',today());
+  if(dt===null) return;
+  dt=String(dt).trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(dt)){alert('Date must look like 2026-09-18');return;}
+  var note=prompt('Note (optional):','')||'';
+  deposits.push({id:'dep_'+Date.now().toString(36),date:dt,amount:Math.round(amt*100)/100,note:note,addedBy:'app',addedAt:new Date().toISOString()});
+  save();
+  renderDeposits();
+}
+function showDeposits(){
+  var rows=deposits.slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date));});
+  if(!rows.length){alert('No deposits on record.');return;}
+  alert('Deposits on record:\n'+rows.map(function(d){return d.date+'  '+(d.amount<0?'-':'+')+'$'+Math.abs(+d.amount).toLocaleString()+(d.note?'  · '+d.note:'');}).join('\n')+'\n\nTo correct an entry, tell Claude: "desk: fix deposit <date>".');
 }
 function G(id){return document.getElementById(id);}
 function nv(id){return parseFloat(G(id).value)||0;}
@@ -1943,6 +2000,7 @@ function showV(name){
    ============================================================ */
 function renderHome(){
   try{
+  try{renderDeposits();}catch(e){}
   var now=new Date();
   var weekStart=new Date(now);weekStart.setDate(now.getDate()-now.getDay());weekStart.setHours(0,0,0,0);
   var thisMonth=now.getFullYear()+'-'+('0'+(now.getMonth()+1)).slice(-2);
@@ -3533,7 +3591,7 @@ function clearAllData(){
   deletedEvents={};
   save();
   // Also clear Firebase
-  if(db){db.ref(FIREBASE_PATH).set({positions:[],settings:cfg,strategies:strategies,sound:celebSound,deletedEvents:{},meta:{updated:new Date().toISOString(),by:'app'}});}
+  if(db){db.ref(FIREBASE_PATH).set({positions:[],settings:cfg,strategies:strategies,sound:celebSound,deletedEvents:{},deposits:deposits,meta:{updated:new Date().toISOString(),by:'app'}});}
   renderHome();
   showV('v-home');
 }
